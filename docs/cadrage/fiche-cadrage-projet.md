@@ -129,7 +129,8 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 - **Jeu réel** : `Tobi-Bueck/customer-support-tickets` (Hugging Face, CC BY-NC 4.0, tickets fictifs). Filtres : `language == "en"`, `type == "Incident"`, texte = `subject + " " + body`, doublons retirés : 9 179 incidents (notebook `tobi_bueck_incidents_v3.ipynb`, section 4).
 - **Étiquette** : la catégorie IT tirée des `tag_*`, première règle qui correspond (section 15.2), identifiants ASCII `securite`, `reseau`, `materiel`, `compte_acces`, `facturation`, `logiciel`, `panne_service` ; les 913 incidents sans catégorie sont écartés, il en reste 8 266 dans le notebook. **Mis à jour au TP2** : `src/train.py --reel` n'applique pas le filtre du notebook sur les queues rares (`MIN_PAR_QUEUE`, 252 tickets), qui ne fait pas partie des filtres retenus ; il garde donc **8 452** incidents étiquetés.
 - **Priorité** : la colonne `priority` (low / medium / high), pour un second modèle (section 9).
-- **Jeu de démonstration** : `src/make_demo.py` génère un jeu synthétique anglais avec les mêmes 7 catégories, pour la CI et les tests (rapide, sans réseau), comme le jeu de démonstration d'avis dans `sentiment-app`.
+- **Jeu de démonstration** : `src/make_demo.py` génère un jeu synthétique anglais avec les mêmes 7 catégories, pour la CI et les tests (rapide, sans réseau), comme le jeu de démonstration d'avis dans `sentiment-app`. **Mis à jour au TP5.1** : il reprend aussi le titre et les symptômes des articles de la base (805 incidents, vocabulaire de 1 400 mots au lieu de 661).
+- **Jeu d'évaluation (TP5.1)** : `data/jeu_evaluation.csv`, 94 messages (12 par catégorie, 10 hors sujet) jamais utilisés pour écrire la base ni le jeu de démonstration.
 - **Base de connaissances** : `data/base_connaissances.csv`, en anglais, au moins 3 articles par catégorie, rédigée par le binôme. **Mis à jour au TP5.1** : au moins 5 articles par catégorie (42 articles, 6 par catégorie).
 - **Tickets passés (TP5.1)** : les tickets de l'agent résolus par un technicien et, en option, la réponse (`answer`) des incidents Tobi-Bueck (`python src/historique.py --reel`, 8 452 tickets, hors Git).
 
@@ -138,7 +139,8 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 | Mesure | Référence du notebook | Seuil d'acceptation |
 | --- | --- | --- |
 | F1 macro, 7 catégories, Tobi-Bueck | 0,788 (LinearSVC calibré) ; naïf 0,072 | au moins 0,75 ; le 0,85 du cours n'est pas atteint sur données réelles, c'est documenté |
-| F1 macro, jeu de démonstration | à mesurer au TP2 | au moins 0,85 (seuil du cours) |
+| F1 macro, jeu de démonstration | à mesurer au TP2 | au moins 0,85 (seuil du cours) ; mesuré 0,856 au TP2, 0,924 au TP5.1 |
+| Jeu d'évaluation, 94 messages (TP5.1) | 40 justes, 5 faux au TP5 | au moins 60 justes, au plus 5 faux, tout le hors sujet au tri (mesuré : 63, 5, 10 sur 10) |
 | Les 2 pièges des 12 incidents (français, charabia) | `INDETERMINE` par le garde-fou de vocabulaire | `INDETERMINE` |
 | Tickets sur les 30 conversations du bilan (TP5.1) | 18 / 30 au TP5, dont 8 évitables | aucun ticket pour un incident que la base sait régler, un pour chacun des autres (mesuré : 10 / 30) |
 | F1 macro de la priorité | 0,646 ; rappel `high` 0,704 | mesuré et rapporté ; la priorité seule ne décide pas d'une non-escalade |
@@ -158,7 +160,8 @@ Données d'entraînement fictives et publiques (licence non commerciale). Les in
 | Paramètre | Valeur de départ | Où il sera mesuré |
 | --- | --- | --- |
 | `SEUIL_ABSTENTION` | 0,5 ; **0,60 depuis le TP4** (mesuré, voir `docs/semaine4.md`) | `src/courbe_seuil.py` (TP4) |
-| Garde-fou de vocabulaire | `INDETERMINE` si moins de 50 % des mots sont connus du modèle | notebook, section 15.1 ; TP4 |
+| Garde-fou de vocabulaire | `INDETERMINE` si moins de 50 % des mots sont connus du modèle ; **sans compter les mots vides depuis le TP5.1** | notebook, section 15.1 ; TP4 ; `src/bilan_evaluation.py` (TP5.1) |
+| `SEUIL_BASE` (TP5.1) | 0,25 : le second avis de la base quand le modèle hésite | `src/bilan_evaluation.py`, jeu d'évaluation et 50 messages de développement |
 | Découpage | 80 / 20 stratifié, graine 42, **avant** la vectorisation | `src/train.py` (TP2) |
 | Modèle | TF-IDF (1-2 grammes, `min_df=2`, `sublinear_tf`) + `LinearSVC` calibré, `class_weight="balanced"` | `src/train.py` (TP2) |
 
@@ -178,3 +181,4 @@ Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST
 | 2026-11-08 | TP4 | `SEUIL_ABSTENTION` passe de 0,5 à 0,60 (courbe du seuil sur la démonstration et sur Tobi-Bueck) ; garde-fou de vocabulaire branché dans l'API ; `INDETERMINE` → groupe « Tri N1 » |
 | 2026-11-08 | TP5 | Page Streamlit en anglais ; `/assist` renvoie un `motif` ; groupes d'escalade renommés en anglais (Triage (L1) pour les incidents incertains) |
 | 2026-11-08 | TP5.1 | Politique des tickets : jamais au premier message, deux tentatives, confirmation, un seul par conversation (18 → 10 tickets sur 30 conversations) ; base de 42 articles ; conversation multi-tours, suivi, avis, statistiques, ticket passé le plus proche ; Ollama en option, désactivé par défaut ; aucun nouveau jeu de données |
+| 2026-11-08 | TP5.1 | Qualité : jeu de démonstration enrichi par la base (F1 0,924), second avis de la base (`SEUIL_BASE` 0,25), garde-fou sans mots vides ; jeu d'évaluation de 94 messages : 40 → 63 justes, 5 faux, hors sujet 10 sur 10 ; fichier de 1 000 tickets : 63 % → 34 % d'INDETERMINE |

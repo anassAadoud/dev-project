@@ -960,7 +960,9 @@ results.csv écrit (dossier temporaire)
 - **L'état gardé par l'API** (`tickets/conversations.jsonl`, la dernière version fait foi) : la règle « un seul ticket » ne dépend pas de ce que la page renvoie, et une conversation survit au redémarrage de l'API.
 - **`/assist` inchangé** : il trie toujours les fichiers de tickets, et il sert de mesure « avant » au bilan.
 - **Seuil du ticket semblable relevé à 0,30** : mesuré sur l'historique Tobi-Bueck, 0,25 montrait des tickets hors sujet.
-- **Pas de nouveau jeu de données** : le problème venait de la politique et de la base, pas du modèle (voir `docs/semaine5.1.md`, partie 5).
+- **Pas de nouveau jeu de données** : le modèle Tobi-Bueck, déjà disponible, ne faisait pas mieux sur des tickets d'une ligne (57 % d'INDETERMINE sur le fichier du binôme, aucun `materiel`) : voir `docs/semaine5.1.md`, parties 5 et 6.
+- **La qualité, mesurée sur un jeu à part** (demande du binôme, après le fichier de 1 000 tickets : 63 % d'INDETERMINE) : `data/jeu_evaluation.csv` (94 messages) a été écrit avant toute modification. Chaque essai est comparé sur ce jeu et sur les 50 messages de développement. Retenus : le jeu de démonstration enrichi par la base, le second avis de la base (`SEUIL_BASE` 0,25), le garde-fou sans mots vides. Écartés : un seuil d'abstention plus bas (les erreurs doublent), un second avis limité aux catégories préférées du modèle (écarts de bruit).
+- **Deux erreurs déclarées au jeu d'or** (négation, appels Teams) : elles viennent du second avis de la base, qui apporte en échange 23 réponses justes de plus sur le jeu d'évaluation ; le test `xfail` strict signalera leur correction.
 
 **Problèmes rencontrés.**
 
@@ -1046,9 +1048,34 @@ python src/historique.py --reel : 8452 tickets passés écrits dans data/histori
 
 - [x] Conforme ; un essai dans un navigateur reste à faire (« À faire par l'humain »)
 
+### T5.1-e · La qualité des réponses
+
+```powershell
+python src/bilan_evaluation.py ..\results.csv ; python src/bilan_jeu_or.py
+```
+
+&nbsp;
+
+**Attendu** : plus de réponses justes sur le jeu d'évaluation, pas plus d'erreurs franches, le hors sujet au tri.
+
+**Obtenu** :
+
+```
+avant (TP5)  : Jeu d'évaluation : 40 justes sur 94 (43%), 5 faux, 49 hésitations ; results.csv : INDETERMINE 633 sur 1000 (63%)
+après (TP5.1): Jeu d'évaluation : 63 justes sur 94 (67%), 5 faux, 26 hésitations ; results.csv : INDETERMINE 343 sur 1000 (34%)
+hors sujet 10 sur 10 au tri ; jeu d'or : juste 15, abstention 2, erreur franche déclarée 3
+python src/train.py : Vocabulaire : 1412 termes ; F1 macro sur le jeu de test : 0.924
+```
+
+- [x] Conforme
+
+**Commentaire** :
+
+> Le modèle Tobi-Bueck a aussi été essayé, en mémoire, sans toucher au dépôt : 57 % d'INDETERMINE sur le fichier du binôme et aucun incident `materiel`. Il n'est pas retenu pour ces tickets courts. `results_tp5.1.csv`, dans le dossier de travail, refait les 1 000 tickets du binôme avec la version finale.
+
 ### Membre B, après le TP5.1
 
-À faire par le membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, `python src/bilan_tickets.py`, puis une conversation dans son navigateur.
+À faire par le membre B : `git pull`, `python src/make_demo.py`, `python src/train.py`, `python -m pytest -q`, `python src/bilan_tickets.py`, `python src/bilan_evaluation.py`, puis une conversation dans son navigateur. Idéalement, écrire 30 messages étiquetés jamais vus par le membre A, pour une mesure indépendante.
 
 ### Fin du TP5.1 : graphe, empreinte, étiquette, copie
 

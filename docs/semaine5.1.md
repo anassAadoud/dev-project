@@ -2,7 +2,7 @@
 
 > Étape ajoutée entre le TP5 et le TP6 : améliorer l'agent sans changer son architecture
 > (page → `ui/client.py` → HTTP → API → modèle + base de connaissances). Chiffres mesurés sur le
-> modèle de démonstration (`models/metrics.json`, F1 macro 0,856, inchangé : le modèle n'a pas été réentraîné).
+> modèle de démonstration, réentraîné au TP5.1 sur un jeu enrichi (`models/metrics.json`, F1 macro 0,924 au lieu de 0,856 : voir la partie 5).
 
 ## Ce qui a changé, et pourquoi
 
@@ -27,7 +27,7 @@
 
 `data/conversations_30.csv` contient 30 incidents réalistes, écrits pour ce diagnostic, avec l'utilisateur qui les écrit : 20 que la base sait régler (`resolu`, avec les articles qui les règlent), 4 qu'aucun article ne règle (`non_resolu`), 3 où l'utilisateur veut un technicien (`demande`), 3 cas critiques (`critique`). Un utilisateur simulé (`src/bilan_tickets.py`) répond à l'agent : « résolu » si l'article proposé est l'un des siens, « pas résolu » sinon, sa phrase de précision si on lui pose une question, la bonne catégorie si on lui montre les boutons, « oui » si on lui propose un ticket.
 
-Mesure de la page du TP5 (une escalade de `/assist` mène au ticket, « No » le crée aussitôt) :
+Mesure de la page du TP5 (une escalade de `/assist` mène au ticket, « No » le crée aussitôt), avec le modèle du TP5. `src/bilan_tickets.py` rejoue cette politique avec le modèle courant : depuis le modèle du TP5.1 (partie 5), sa ligne « Avant » affiche 16 tickets, dont 6 évitables :
 
 ```
 Avant (TP5) : 18 tickets sur 30 conversations (60%), dont 8 pour un incident que la base sait régler (20 incidents résolubles)
@@ -94,16 +94,51 @@ Les 3 écarts de la colonne du milieu (webcam, application d'authentification, s
 
 Nouvelles routes : `POST /chat`, `GET /tickets`, `PATCH /tickets/{id}`, `POST /feedback`, `GET /stats`. Les tickets, conversations et avis sont des fichiers JSON Lines dans le dossier de `SUPPORT_TICKETS` (`api/stockage.py`) : une modification ajoute une version, la dernière fait foi.
 
-## 5. Autres jeux de données
+## 5. La qualité des réponses : le modèle, la base et le garde-fou
 
-**Aucun nouveau jeu n'a été ajouté.** L'objectif du TP5.1 est atteint sans réentraîner le modèle : les tickets inutiles venaient de la politique (hésitation → ticket) et de la base, pas d'une erreur franche du modèle. Les boutons de catégories compensent les faiblesses du modèle de démonstration sur `compte_acces` et `materiel`. Le seul jeu utilisé est Tobi-Bueck, déjà retenu au TP2, pour l'historique des tickets passés, et il n'est pas versionné. Un jeu public supplémentaire pour les catégories faibles ou les messages courts reste une piste pour améliorer le modèle réel (`train.py --reel`) : il faudra d'abord le valider avec le binôme (lien, licence, taille, correspondance avec nos 7 catégories), et ne le garder que s'il améliore le F1 macro, le rappel par catégorie et le taux de tickets sur les 30 messages.
+Le fichier de 1 000 tickets du binôme (`results.csv`, page « A file of tickets ») donnait 633 « I don't know » (63 %) et des erreurs franches (« What is the meaning of life? » → Service outage, micro du casque → Security). La politique de conversation compense l'hésitation par une question, mais un fichier de tickets ne peut pas poser de question. La qualité du classement compte donc aussi.
+
+**Mesure honnête d'abord.** `data/jeu_evaluation.csv` : 94 messages écrits avant toute modification, et jamais utilisés pour écrire la base ni le jeu de démonstration (12 par catégorie, 10 hors sujet). `src/bilan_evaluation.py` compte, pour chaque message, « juste » (la bonne catégorie, ou INDETERMINE pour un hors sujet), « faux » (une autre catégorie) ou « hésite » (INDETERMINE pour un vrai incident, qui mène à une question dans la conversation). Les seuils ont été comparés sur ce jeu et sur les 50 messages de développement (`conversations_30.csv` et `jeu_or.csv`) : un choix doit tenir sur les deux.
+
+**Ce qui a été essayé.**
+
+| Essai | Jeu d'évaluation (juste / faux / hésite) | Fichier de 1 000 tickets : INDETERMINE | Retenu ? |
+| --- | --- | --- | --- |
+| Départ : modèle de démonstration du TP5 (661 mots) | 40 / 5 / 49 | 633 (63 %) | — |
+| Modèle réel Tobi-Bueck (`train.py --reel`, 28 420 mots), même seuils | non mesuré sur ce jeu | 572 (57 %), aucun `materiel` | non : entraîné sur de longs courriels, il ne connaît pas les tickets d'une ligne |
+| Jeu de démonstration enrichi par les symptômes de la base (805 incidents, 1 400 mots) | 57 / 6 / 31 | 384 (38 %) | oui |
+| + second avis de la base quand le modèle hésite (`SEUIL_BASE` 0,25) | 66 / 7 / 21 | 304 (30 %) | oui |
+| + garde-fou de vocabulaire sans les mots vides | 60 / 4 / 30, hors sujet 10 sur 10 | 357 (36 %) | oui : moins d'erreurs franches |
+| Seuil d'abstention 0,50 ou 0,55 au lieu de 0,60 | jusqu'à 66 / 14 / 14 | — | non : les erreurs franches doublent |
+| Second avis limité aux 2 ou 3 catégories préférées du modèle | 59 à 63 / 3 à 4 | 287 à 371 | non : écarts de 1 à 3 messages, du bruit sur des jeux de cette taille |
+| + deux symptômes matériels dans la base (souris sans fil, poste qui redémarre avec une clé USB), vus dans le fichier du binôme | **63 / 5 / 26**, hors sujet 10 sur 10 | **343 (34 %)** | oui |
+
+**Les trois changements retenus.**
+
+1. **Le jeu de démonstration parle le vocabulaire de la base** (`src/make_demo.py`) : en plus des 36 symptômes du TP2, le titre et chaque symptôme des 42 articles, et des débuts de phrase plus variés (« Please help: », « IT support request: »…). 805 incidents au lieu de 350. F1 macro sur son jeu de test : 0,924 (0,856 au TP5).
+2. **Le second avis de la base** (`api/model.py`, `SEUIL_BASE = 0,25`) : quand la confiance du modèle est sous 0,60 mais que les mots sont connus, la catégorie de l'article le plus proche (`kb.article_le_plus_proche`) est retenue si sa similarité atteint 0,25. Les réponses de `/predict` et `/assist` disent qui a choisi (`source` : `modele`, `base` ou `aucune`), et la page l'affiche dans le tableau du fichier (« decided by »). Sur le fichier de 1 000 tickets : 588 choisis par le modèle, 69 par la base, 343 au tri.
+3. **Le garde-fou de vocabulaire ignore les mots vides** (`src/predict.py`, `part_connue`) : « Our coffee machine leaks water on the floor » passait le garde-fou parce que « our », « on » et « the » comptaient comme des mots connus. Les 10 messages hors sujet vont maintenant tous au tri. Une autre langue et le charabia y vont toujours, même quand un mot (« VPN ») ressemble à un article : le second avis ne s'applique jamais sous le garde-fou.
+
+**Ce qui reste faux.** Au jeu d'or, trois erreurs franches sont déclarées (colonne `erreur_connue`, tests en `xfail` strict) : « It does not work » (déjà déclarée au TP4), la négation « Nothing is wrong with the network, it is the keyboard… » (le second avis retient « network »), et « Teams calls drop… screen sharing freezes » (la base retient l'article des réunions, `logiciel`, là où le jeu d'or attend `reseau` : les deux se défendent). Dans le jeu d'évaluation, `securite` et `materiel` restent les plus hésitants (7 et 6 hésitations sur 12) : dans la conversation, ces incidents passent par les boutons de catégories.
+
+**Les limites de la mesure.** Le jeu d'évaluation a été écrit par la même personne que la base, et les deux derniers symptômes viennent du fichier du binôme : les chiffres sont honnêtes mais pas indépendants. Les seuils ont été choisis sur le jeu d'évaluation **et** sur les 50 messages de développement, pour limiter le surapprentissage d'un seul jeu. Un jeu étiqueté par le membre B, jamais vu, donnerait une mesure plus sûre.
+
+**Les tests qui fixent la qualité** : `tests/test_evaluation.py` (au moins 60 justes, au plus 5 faux, tout le hors sujet au tri, au moins 4 justes sur 12 dans chaque catégorie), et dans `tests/test_api.py` le second avis, le garde-fou face à une autre langue, le hors sujet. Le bilan des 30 conversations reste parfait : 10 tickets, tous attendus, en 2,5 tours en moyenne (2,7 avant).
+
+**Sur le fichier du binôme** : `results_tp5.1.csv` (dossier de travail, hors dépôt) refait les 1 000 tickets avec la version finale. « I don't know » passe de 633 à 343, et 443 réponses changent. Les erreurs relevées dans le premier fichier sont corrigées (micro du casque, souris, clé USB, Ethernet, « meaning of life », « moon made of cheese ») ou envoyées au tri (ports USB, poste qui ne démarre pas), au lieu d'une catégorie fausse.
+
+## 6. Autres jeux de données
+
+**Aucun nouveau jeu n'a été ajouté.** Les tickets inutiles venaient de la politique (hésitation → ticket) et de la base, et les erreurs du classement de son vocabulaire trop pauvre (partie 5) : le modèle Tobi-Bueck, déjà disponible, ne faisait pas mieux sur des tickets d'une ligne. Les boutons de catégories compensent les faiblesses du modèle de démonstration sur `compte_acces` et `materiel`. Le seul jeu utilisé est Tobi-Bueck, déjà retenu au TP2, pour l'historique des tickets passés, et il n'est pas versionné. Un jeu public supplémentaire pour les catégories faibles ou les messages courts reste une piste pour améliorer le modèle réel (`train.py --reel`) : il faudra d'abord le valider avec le binôme (lien, licence, taille, correspondance avec nos 7 catégories), et ne le garder que s'il améliore le F1 macro, le rappel par catégorie et le taux de tickets sur les 30 messages.
 
 ## Mesures de contrôle
 
 | Contrôle | Obtenu |
 | --- | --- |
-| `python -m pytest -q` | 247 passed, 1 xfailed, 1 failed (l'auteur unique, comme au TP1) : 129 tests de plus qu'au TP5 |
-| Couverture de `api/` | 99 % (592 instructions, 3 non couvertes) ; seuil de la CI : 95 % |
+| `python -m pytest -q` | 259 passed, 3 xfailed (erreurs déclarées du jeu d'or), 1 failed (l'auteur unique, comme au TP1) : 143 tests de plus qu'au TP5 |
+| Couverture de `api/` | 99,5 % ; seuil de la CI : 95 % |
+| `python src/bilan_evaluation.py` | 63 justes sur 94 (67 %), 5 faux, 26 hésitations ; hors sujet 10 sur 10 (TP5 : 40 justes, 5 faux, 49 hésitations) |
+| `python src/bilan_jeu_or.py` | juste 15, abstention 2, erreur franche déclarée 3 |
 | `ruff check .` ; `mypy api` | All checks passed! ; Success: no issues found in 9 source files |
 | API réelle (port 8010) et page (port 8511) | `/health` : 42 articles, `"llm": "off"` ; la page répond 200 |
 | Conversation réelle « The webcam is not detected during video calls » | boutons (Hardware en premier), article « Webcam, microphone or headset not detected », « Solved » : aucun ticket, taux 100 % |
