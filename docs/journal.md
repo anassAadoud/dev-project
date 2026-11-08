@@ -550,3 +550,13 @@ FAILED tests/test_git_history.py::test_each_member_has_committed
 ### Membre B, après le TP2
 
 À faire par le membre B : `git pull`, `python src/make_demo.py`, `python src/train.py`, `python -m pytest -q`.
+
+### Fin du TP2 : graphe, empreinte, étiquette, copie
+
+**Graphe** (`--update` : 11 documents repris du cache, 3 réextraits ; tout le code réanalysé) : 249 nœuds, 427 arêtes, 16 groupes.
+
+**Comparaison avec `sentiment-app`** : le groupe « Entraînement et évaluation (src/) » correspond au groupe « Entraînement et exemples (src/) » de la référence, avec les mêmes dépendances (`joblib`, `pandas`, `Pipeline`, `argparse`, `train_test_split`). « Métriques et tests du modèle » relie `metrics.json` à `test_model.py`, comme dans la référence. Le jeu de démonstration forme un groupe à part, comme `make_demo.py` de la référence. **Écarts** : notre `src/` n'a pas `courbe_seuil.py` ni `bilan_jeu_or.py`, qui arrivent au TP4, comme dans le cours. Notre `predict.py` charge deux modèles (catégorie et priorité) dans un seul fichier, quand celui de la référence n'en charge qu'un. Il n'existe pas encore de paquet `support_it` : le code de prédiction vit dans `src/`, comme dans `sentiment-app` avant son TP6.
+
+**Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
+
+**Étiquette** `tp2` sur le dernier commit du TP2, puis copie `Agent_support_info_TP2`. Les fichiers du TP3 commencés avant la copie (`api/`, `src/kb.py`, `data/base_connaissances.csv`, non commités) sont exclus de la copie, pour qu'elle ne contienne que le TP2.
