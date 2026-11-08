@@ -1,0 +1,29 @@
+text,categorie
+"I received an email asking me to confirm my password on a strange website, I think it is phishing",securite
+"Our antivirus flagged a malware file in the shared folder this morning",securite
+"Someone logged into my account from another country, I did not do it",securite
+"A colleague's laptop shows a ransom message and the files are encrypted",securite
+"My VPN keeps disconnecting every 10 minutes when I work from home",reseau
+"The Wi-Fi in meeting room 3 is very slow and drops often",reseau
+"I cannot reach the intranet, the browser says DNS address not found",reseau
+"No internet connection on the office desktop since the cable was moved",reseau
+"The printer on the second floor shows offline and nothing prints",materiel
+"My laptop battery drains in one hour and the charger gets very hot",materiel
+"The second monitor stays black after I connect it to the docking station",materiel
+"The keyboard of my workstation has several keys that no longer respond",materiel
+"I can't log in, my account is locked after too many password attempts",compte_acces
+"I cannot access the shared drive anymore, permission denied",compte_acces
+"My password expired and the reset link in the email does not work",compte_acces
+"The new employee has no access to the CRM application yet",compte_acces
+"I was charged twice for my subscription this month",facturation
+"The invoice for October shows the wrong amount for our licences",facturation
+"Our payment was declined although the card is valid",facturation
+"We need a refund for the software licence that was cancelled",facturation
+"The new software update crashes the application on startup",logiciel
+"Outlook stopped receiving emails since this morning",logiciel
+"Excel freezes every time I open a file with macros",logiciel
+"The accounting software shows an error code when I export the report",logiciel
+"Our production database server is down and the whole team is blocked",panne_service
+"The company website returns a 500 error for all customers",panne_service
+"The email service is unavailable for the whole office since 9 am",panne_service
+"The ticketing portal has been down during the scheduled maintenance for hours",panne_service
