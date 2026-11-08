@@ -817,3 +817,13 @@ mypy (contrat typé de l'API).............Passed   -> commit refusé, HEAD incha
 ### Membre B, après le TP4
 
 À faire par le membre B : `git pull`, `pip install -r requirements-dev.txt`, `pre-commit install` dans son clone, `python src/train.py`, `python -m pytest -q`. Il écrit aussi ses dix incidents du jeu d'or : les vingt actuels ont été écrits par le membre A, ce qui est un écart à la répartition du guide (« dix chacun »).
+
+### Fin du TP4 : graphe, empreinte, étiquette, copie
+
+**Graphe** (`--update`) : 464 nœuds, 791 arêtes, 26 groupes.
+
+**Comparaison avec `sentiment-app`** : les groupes du TP4 de la référence ont leur équivalent : « Tests aux limites et jeu d'or » chez elle, « Jeu d'or et analyse des erreurs » et « Tickets et tests de propriétés » chez nous (hypothesis, `given`) ; « Tests d'intégration », « Crochet pre-commit » et « Raccord typé api/model », avec `Prediction` en `TypedDict`, comme `Prediction` de la référence. **Écarts** : nous avons en plus « Règles d'escalade (decider) », relié à la fiche `cas1` et à `tests/test_escalade.py`, et un garde-fou de vocabulaire, à côté du seuil, que la référence n'a pas. Le graphe isole un nœud « Réponse du ticket passé » sans lien vers le code : c'est la fonctionnalité facultative non réalisée (TP3), ce qui est exact.
+
+**Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
+
+**Étiquette** `tp4`, puis copie `Agent_support_info_TP4`.
