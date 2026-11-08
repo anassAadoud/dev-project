@@ -2,7 +2,7 @@
 
 > Étape ajoutée entre le TP5 et le TP6 : améliorer l'agent sans changer son architecture
 > (page → `ui/client.py` → HTTP → API → modèle + base de connaissances). Chiffres mesurés sur le
-> modèle de démonstration, réentraîné au TP5.1 sur un jeu enrichi (`models/metrics.json`, F1 macro 0,924 au lieu de 0,856 : voir la partie 5).
+> modèle de démonstration, réentraîné au TP5.1 sur un jeu enrichi (`models/metrics.json`, F1 macro 0,907 au lieu de 0,856, priorité revue : parties 5 et 6).
 
 ## Ce qui a changé, et pourquoi
 
@@ -127,7 +127,35 @@ Le fichier de 1 000 tickets du binôme (`results.csv`, page « A file of tickets
 
 **Sur le fichier du binôme** : `results_tp5.1.csv` (dossier de travail, hors dépôt) refait les 1 000 tickets avec la version finale. « I don't know » passe de 633 à 343, et 443 réponses changent. Les erreurs relevées dans le premier fichier sont corrigées (micro du casque, souris, clé USB, Ethernet, « meaning of life », « moon made of cheese ») ou envoyées au tri (ports USB, poste qui ne démarre pas), au lieu d'une catégorie fausse.
 
-## 6. Autres jeux de données
+## 6. La priorité et la décision du fichier de tickets
+
+Le binôme a fait passer `exemple_test.csv` (500 messages avec la catégorie attendue) dans la page « A file of tickets » (`results (2).csv`). Les catégories étaient celles attendues du modèle, mais deux défauts sont apparus :
+
+- **La priorité ignorait la négation** : 27 des 31 messages « not urgent » étaient `high`, et 266 messages sur 500 étaient `high`. Au TP2, le jeu de démonstration tirait la priorité de la seule fin de phrase, sans jamais écrire « not urgent ».
+- **La décision du fichier ne suivait pas la conversation** : 384 messages sur 500 en « escalade », surtout pour la priorité haute (158), alors que la conversation ne crée plus de ticket pour une priorité haute.
+
+**Mesure honnête d'abord.** `exemple_test_2.csv` (dossier de travail, hors dépôt) reprend les incidents de `exemple_test.csv` avec des formules d'urgence et de calme absentes de l'entraînement (« nothing urgent », « it can wait until next week », « ASAP », « we are completely blocked »…) et une priorité attendue par une règle écrite d'avance : urgence explicite → `high`, calme explicite → `low`, sinon `securite` et `panne_service` → `high`, le reste → `medium`.
+
+**La règle de la priorité dans le jeu de démonstration** (`src/make_demo.py`) : la même. Chaque incident reçoit un ton (urgent, calme, neutre, neutre) ; un incident neutre prend la priorité de sa catégorie. Le calme comprend des négations (« not urgent », « not critical at all », « no need to hurry »). Des formules d'urgence qui portaient des mots d'une catégorie (« production », « customers », « money ») ont été retirées : elles tiraient la catégorie vers `panne_service` ou `facturation`.
+
+**La variance du jeu de démonstration.** Le jeu est tiré au hasard : le même code donne de 55 à 62 justes et de 4 à 8 faux sur le jeu d'évaluation selon la graine. Comparer deux versions sur une seule graine mesurait surtout ce bruit (63 justes avant ce travail, 57 après, pour un écart moyen d'un message sur trois graines). Huit graines ont été comparées sur les **50 messages de développement** ; la graine 2 y est la meilleure (41 justes, 3 faux) et elle est retenue. Le jeu d'évaluation n'a pas servi au choix : ses chiffres restent une mesure.
+
+**La décision de `/assist`** (`decider_tp51` dans `api/model.py`) suit maintenant la conversation : un technicien pour une catégorie incertaine (le tri N1, comme avant), un cas critique (`securite`, `panne_service`, motif `critique`) ou l'absence d'article ; sinon `solution`. La priorité haute et les articles « always » ne suffisent plus : la conversation propose d'abord les étapes. Les règles du TP4 (`decider`) restent dans le code pour rejouer la mesure « avant » de `src/bilan_tickets.py`, et leurs tests aussi.
+
+| Mesure | Avant | Après |
+| --- | --- | --- |
+| `exemple_test_2.csv` : priorité exacte (455 messages) | 43 % | **63 %** |
+| `exemple_test_2.csv` : messages calmes marqués `high` | 54 / 127 | **24 / 127** |
+| `exemple_test.csv` : « not urgent » marqués `high` | 27 / 31 | 0 / 31 (formule désormais apprise : chiffre non indépendant) |
+| Fichier de 500 messages : « escalade » | 384 (`exemple_test.csv`), 387 (`exemple_test_2.csv`) | **266**, **293** : tri N1 et cas critiques seulement |
+| Jeu d'évaluation (catégorie) | 63 / 5 / 26 (une graine favorable) | **62 / 5 / 27** ; hors sujet 9 sur 10 |
+| 30 conversations | 10 tickets, tous attendus | 10 tickets, tous attendus |
+| Jeu d'or | 15 justes, 3 erreurs déclarées | 15 justes, 2 erreurs déclarées : « It does not work » va maintenant au tri |
+| Fichier de 1 000 tickets du binôme : INDETERMINE | 34 % | 36 % |
+
+**Ce qui reste faux.** La priorité se trompe encore sur un tiers des messages : un modèle appris sur 805 phrases synthétiques ne connaît pas toutes les façons de dire l'urgence. « Who won the football match yesterday » est classé `facturation`, à cause du mot « match » (« licence count does not match »). Les seuils de `tests/test_evaluation.py` sont placés dans la plage mesurée sur les huit graines (au moins 58 justes, au plus 6 faux, au plus 1 hors sujet classé) : ils signalent un vrai recul sans échouer sur le bruit.
+
+## 7. Autres jeux de données
 
 **Aucun nouveau jeu n'a été ajouté.** Les tickets inutiles venaient de la politique (hésitation → ticket) et de la base, et les erreurs du classement de son vocabulaire trop pauvre (partie 5) : le modèle Tobi-Bueck, déjà disponible, ne faisait pas mieux sur des tickets d'une ligne. Les boutons de catégories compensent les faiblesses du modèle de démonstration sur `compte_acces` et `materiel`. Le seul jeu utilisé est Tobi-Bueck, déjà retenu au TP2, pour l'historique des tickets passés, et il n'est pas versionné. Un jeu public supplémentaire pour les catégories faibles ou les messages courts reste une piste pour améliorer le modèle réel (`train.py --reel`) : il faudra d'abord le valider avec le binôme (lien, licence, taille, correspondance avec nos 7 catégories), et ne le garder que s'il améliore le F1 macro, le rappel par catégorie et le taux de tickets sur les 30 messages.
 
@@ -135,10 +163,10 @@ Le fichier de 1 000 tickets du binôme (`results.csv`, page « A file of tickets
 
 | Contrôle | Obtenu |
 | --- | --- |
-| `python -m pytest -q` | 259 passed, 3 xfailed (erreurs déclarées du jeu d'or), 1 failed (l'auteur unique, comme au TP1) : 143 tests de plus qu'au TP5 |
+| `python -m pytest -q` | 266 passed, 2 xfailed (erreurs déclarées du jeu d'or), 1 failed (l'auteur unique, comme au TP1) : 150 tests de plus qu'au TP5 |
 | Couverture de `api/` | 99,5 % ; seuil de la CI : 95 % |
-| `python src/bilan_evaluation.py` | 63 justes sur 94 (67 %), 5 faux, 26 hésitations ; hors sujet 10 sur 10 (TP5 : 40 justes, 5 faux, 49 hésitations) |
-| `python src/bilan_jeu_or.py` | juste 15, abstention 2, erreur franche déclarée 3 |
+| `python src/bilan_evaluation.py` | 62 justes sur 94 (66 %), 5 faux, 27 hésitations ; hors sujet 9 sur 10 (TP5 : 40 justes, 5 faux, 49 hésitations) |
+| `python src/bilan_jeu_or.py` | juste 15, abstention 3, erreur franche déclarée 2 |
 | `ruff check .` ; `mypy api` | All checks passed! ; Success: no issues found in 9 source files |
 | API réelle (port 8010) et page (port 8511) | `/health` : 42 articles, `"llm": "off"` ; la page répond 200 |
 | Conversation réelle « The webcam is not detected during video calls » | boutons (Hardware en premier), article « Webcam, microphone or headset not detected », « Solved » : aucun ticket, taux 100 % |

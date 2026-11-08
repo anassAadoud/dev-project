@@ -962,6 +962,7 @@ results.csv écrit (dossier temporaire)
 - **Seuil du ticket semblable relevé à 0,30** : mesuré sur l'historique Tobi-Bueck, 0,25 montrait des tickets hors sujet.
 - **Pas de nouveau jeu de données** : le modèle Tobi-Bueck, déjà disponible, ne faisait pas mieux sur des tickets d'une ligne (57 % d'INDETERMINE sur le fichier du binôme, aucun `materiel`) : voir `docs/semaine5.1.md`, parties 5 et 6.
 - **La qualité, mesurée sur un jeu à part** (demande du binôme, après le fichier de 1 000 tickets : 63 % d'INDETERMINE) : `data/jeu_evaluation.csv` (94 messages) a été écrit avant toute modification. Chaque essai est comparé sur ce jeu et sur les 50 messages de développement. Retenus : le jeu de démonstration enrichi par la base, le second avis de la base (`SEUIL_BASE` 0,25), le garde-fou sans mots vides. Écartés : un seuil d'abstention plus bas (les erreurs doublent), un second avis limité aux catégories préférées du modèle (écarts de bruit).
+- **La priorité et la décision du fichier** (demande du binôme, après `results (2).csv` : « not urgent » donnait `high`, 384 escalades sur 500) : un fichier frais, `exemple_test_2.csv`, aux formules d'urgence absentes de l'entraînement, a été écrit avant tout changement. La priorité du jeu de démonstration suit maintenant une règle écrite (urgence, calme, sinon la catégorie), et `/assist` suit la politique de la conversation (`decider_tp51`). La graine du jeu de démonstration est choisie sur les 50 messages de développement, parce que d'une graine à l'autre le jeu d'évaluation varie de 7 messages.
 - **Deux erreurs déclarées au jeu d'or** (négation, appels Teams) : elles viennent du second avis de la base, qui apporte en échange 23 réponses justes de plus sur le jeu d'évaluation ; le test `xfail` strict signalera leur correction.
 
 **Problèmes rencontrés.**
@@ -1072,6 +1073,31 @@ python src/train.py : Vocabulaire : 1412 termes ; F1 macro sur le jeu de test : 
 **Commentaire** :
 
 > Le modèle Tobi-Bueck a aussi été essayé, en mémoire, sans toucher au dépôt : 57 % d'INDETERMINE sur le fichier du binôme et aucun incident `materiel`. Il n'est pas retenu pour ces tickets courts. `results_tp5.1.csv`, dans le dossier de travail, refait les 1 000 tickets du binôme avec la version finale.
+
+### T5.1-f · La priorité et la décision du fichier de tickets
+
+```powershell
+python src/make_demo.py ; python src/train.py ; python src/bilan_evaluation.py ; python src/bilan_tickets.py
+```
+
+&nbsp;
+
+**Obtenu** :
+
+```
+F1 macro sur le jeu de test : 0.907 ; Priorité : F1 macro 0.930, rappel de high 0.850
+exemple_test_2.csv : priorité exacte 43 % -> 63 % ; calmes marqués high 54 -> 24 sur 127 ; escalade 387 -> 293 sur 500
+exemple_test.csv   : « not urgent » marqués high 27 -> 0 sur 31 ; escalade 384 -> 266 sur 500
+Jeu d'évaluation : 62 justes sur 94 (66%), 5 faux, 27 hésitations
+Après (TP5.1) : 10 tickets sur 30 conversations (33%), attendus 10 ; écarts à l'attendu : 0
+jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not work » corrigé : il va au tri)
+```
+
+- [x] Conforme
+
+**Commentaire** :
+
+> Huit graines du jeu de démonstration comparées : de 55 à 62 justes et de 4 à 8 faux sur le jeu d'évaluation, pour le même code. La graine 2 est choisie sur les 50 messages de développement (41 justes, 3 faux), pas sur le jeu d'évaluation. Les seuils de `tests/test_evaluation.py` sont placés dans la plage mesurée. Les résultats refaits sont dans le dossier de travail : `results_exemple_test_tp5.1.csv` et `results_exemple_test_2_tp5.1.csv`.
 
 ### Membre B, après le TP5.1
 

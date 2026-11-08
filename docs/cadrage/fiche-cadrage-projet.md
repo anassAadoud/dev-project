@@ -139,8 +139,9 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 | Mesure | Référence du notebook | Seuil d'acceptation |
 | --- | --- | --- |
 | F1 macro, 7 catégories, Tobi-Bueck | 0,788 (LinearSVC calibré) ; naïf 0,072 | au moins 0,75 ; le 0,85 du cours n'est pas atteint sur données réelles, c'est documenté |
-| F1 macro, jeu de démonstration | à mesurer au TP2 | au moins 0,85 (seuil du cours) ; mesuré 0,856 au TP2, 0,924 au TP5.1 |
-| Jeu d'évaluation, 94 messages (TP5.1) | 40 justes, 5 faux au TP5 | au moins 60 justes, au plus 5 faux, tout le hors sujet au tri (mesuré : 63, 5, 10 sur 10) |
+| F1 macro, jeu de démonstration | à mesurer au TP2 | au moins 0,85 (seuil du cours) ; mesuré 0,856 au TP2, 0,907 au TP5.1 |
+| Jeu d'évaluation, 94 messages (TP5.1) | 40 justes, 5 faux au TP5 | au moins 58 justes, au plus 6 faux, au plus 1 hors sujet classé (mesuré : 62, 5, 9 sur 10 ; de 55 à 62 justes selon la graine du jeu de démonstration) |
+| Priorité exacte, `exemple_test_2.csv` (455 messages, TP5.1) | 43 % | mesurée et rapportée (63 %) ; la priorité seule ne déclenche plus d'escalade |
 | Les 2 pièges des 12 incidents (français, charabia) | `INDETERMINE` par le garde-fou de vocabulaire | `INDETERMINE` |
 | Tickets sur les 30 conversations du bilan (TP5.1) | 18 / 30 au TP5, dont 8 évitables | aucun ticket pour un incident que la base sait régler, un pour chacun des autres (mesuré : 10 / 30) |
 | F1 macro de la priorité | 0,646 ; rappel `high` 0,704 | mesuré et rapporté ; la priorité seule ne décide pas d'une non-escalade |
@@ -149,7 +150,7 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 
 Une mauvaise catégorie propose une solution inadaptée : l'utilisateur répond « non résolu » et un ticket part vers un technicien. Une escalade manquée est l'erreur la plus coûteuse : dans le doute (confiance basse, mots inconnus, priorité haute), on escalade. Le technicien peut réaffecter le ticket et corriger la catégorie.
 
-**Mis à jour au TP5.1** : le doute ne crée plus de ticket d'emblée, il déclenche une question (boutons de catégories). L'escalade reste garantie : les cas critiques reçoivent la proposition de ticket dès le premier message, l'utilisateur peut demander un technicien à tout moment, et deux tentatives sans succès mènent au ticket.
+**Mis à jour au TP5.1** : la priorité haute seule ne déclenche plus d'escalade, ni dans la conversation ni dans le fichier de tickets (`decider_tp51`) ; le doute ne crée plus de ticket d'emblée, il déclenche une question (boutons de catégories). L'escalade reste garantie : les cas critiques reçoivent la proposition de ticket dès le premier message, l'utilisateur peut demander un technicien à tout moment, et deux tentatives sans succès mènent au ticket.
 
 ## Risques éthiques ou de confidentialité
 
@@ -182,3 +183,4 @@ Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST
 | 2026-11-08 | TP5 | Page Streamlit en anglais ; `/assist` renvoie un `motif` ; groupes d'escalade renommés en anglais (Triage (L1) pour les incidents incertains) |
 | 2026-11-08 | TP5.1 | Politique des tickets : jamais au premier message, deux tentatives, confirmation, un seul par conversation (18 → 10 tickets sur 30 conversations) ; base de 42 articles ; conversation multi-tours, suivi, avis, statistiques, ticket passé le plus proche ; Ollama en option, désactivé par défaut ; aucun nouveau jeu de données |
 | 2026-11-08 | TP5.1 | Qualité : jeu de démonstration enrichi par la base (F1 0,924), second avis de la base (`SEUIL_BASE` 0,25), garde-fou sans mots vides ; jeu d'évaluation de 94 messages : 40 → 63 justes, 5 faux, hors sujet 10 sur 10 ; fichier de 1 000 tickets : 63 % → 34 % d'INDETERMINE |
+| 2026-11-08 | TP5.1 | Priorité du jeu de démonstration : urgence → high, calme (négations comprises) → low, sinon selon la catégorie ; graine du jeu choisie sur les 50 messages de développement (2) ; `/assist` suit la conversation (`decider_tp51`) : 387 → 293 escalades sur 500 messages ; priorité exacte 43 % → 63 % |
