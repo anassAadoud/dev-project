@@ -170,3 +170,4 @@ Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST
 | 2026-11-08 | TP2 | Données réelles : 8 452 incidents étiquetés (pas de filtre sur les queues rares) ; F1 macro mesuré 0,789 sur Tobi-Bueck, 0,856 sur la démonstration ; priorité : F1 0,661, rappel `high` 0,717 |
 | 2026-11-08 | TP3 | Base de connaissances écrite : 21 articles (3 par catégorie) ; seuil de similarité 0,10 ; routes `/assist` et `/tickets` en place ; la réponse du ticket passé n'est pas exposée |
 | 2026-11-08 | TP4 | `SEUIL_ABSTENTION` passe de 0,5 à 0,60 (courbe du seuil sur la démonstration et sur Tobi-Bueck) ; garde-fou de vocabulaire branché dans l'API ; `INDETERMINE` → groupe « Tri N1 » |
+| 2026-11-08 | TP5 | Page Streamlit en anglais ; `/assist` renvoie un `motif` ; groupes d'escalade renommés en anglais (Triage (L1) pour les incidents incertains) |

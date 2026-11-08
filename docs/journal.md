@@ -44,6 +44,7 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP2 | `git pull`, `python src/make_demo.py`, `python src/train.py`, `python -m pytest -q` ; vérifier la CI après le push | Membre B |
 | TP3 | Vérifier la CI (T19) ; membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, essais T15 à T18 | Les deux |
 | TP4 | Membre B : `pip install -r requirements-dev.txt`, `pre-commit install`, ses dix incidents du jeu d'or ; vérifier la CI (T27) | Les deux |
+| TP5 | Essayer la page dans un navigateur (T29 à T33, `uvicorn api.main:app` puis `streamlit run ui/app.py`) ; vérifier la CI (T34) | Les deux |
 | Tous | Captures d'écran dans `docs/captures/` si l'enseignant les exige | Les deux |
 
 ## Écarts au guide et à la méthode
@@ -63,6 +64,8 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP3 | La réponse du ticket passé le plus proche (`answer` de Tobi-Bueck) n'est pas exposée | L'API de la CI tourne sans réseau sur le modèle de démonstration ; facultatif dans le cadrage |
 | TP4 | Seuil d'abstention 0,60 et garde-fou de vocabulaire (deux causes d'abstention) | Seuil mesuré sur les deux jeux ; garde-fou tiré du notebook (section 15.1) |
 | TP4 | Les 20 incidents du jeu d'or sont écrits par le membre A seul | Le guide demande dix incidents par membre : le membre B doit compléter ou remplacer les siens |
+| TP5 | Contrôles T29 à T33 rejoués avec `AppTest` et le client, pas dans un navigateur | Pas de navigateur dans l'environnement de travail ; la page et l'API tournaient pour de bon |
+| TP5 | `/assist` reçoit un champ `motif`, les groupes d'escalade passent en anglais | Page en anglais : elle traduit un code, au lieu d'interpréter une phrase |
 
 ---
 
@@ -827,3 +830,99 @@ mypy (contrat typé de l'API).............Passed   -> commit refusé, HEAD incha
 **Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
 
 **Étiquette** `tp4`, puis copie `Agent_support_info_TP4`.
+
+---
+
+## TP5 : l'interface Streamlit
+
+**Date** : 8 novembre 2026 · **Fait par** : membre A (avec Claude Code)
+
+**Ce qui a été fait.** `ui/client.py`, client HTTP : santé, `/predict`, `/assist`, `/tickets`, lot et résumé, avec chaque code HTTP traduit en message anglais. `ui/app.py`, la page : un incident pas à pas, des étapes cochables, « Is it solved? », la création du ticket, et un onglet pour un fichier de tickets. S'y ajoutent `data/incidents_exemple.csv` (8 tickets, versionné), `tests/test_client.py` (9 tests) et `tests/test_interface.py` (6 tests, `AppTest`), Streamlit dans la CI et `docs/semaine5.md`. Côté API, un seul ajout : le champ `motif` de `/assist`.
+
+**Décisions et raisons.**
+
+- **`motif` dans `/assist`** : la page doit être en anglais, mais la raison de la décision, en français, est écrite pour le technicien. Plutôt que de faire traduire une phrase par la page (qui devrait alors connaître les règles), l'API renvoie un code, et la page le traduit avec une table (`MOTIFS`).
+- **Les réponses gardées dans `st.session_state`** : Streamlit relance le script à chaque clic. Sans cela, cocher une étape ou répondre « Is it solved? » effacerait la réponse de `/assist`.
+- **« No » crée le ticket tout de suite** : c'est la promesse du sujet (« sinon, crée un ticket pré-rempli »). Pour une escalade, le ticket attend un clic, pour que l'utilisateur voie d'abord pourquoi on escalade et puisse essayer les étapes en attendant.
+- **Les noms des groupes en anglais** : défaut vu à T30 (« sent to the Poste de travail team »), corrigé dans `api/model.py`.
+
+**Problèmes rencontrés.**
+
+- Pas de navigateur dans l'environnement de travail : T29 à T32 ont été rejoués avec `AppTest` sur la vraie page, branchée sur l'API réelle par HTTP, avec la page Streamlit lancée en parallèle (réponse 200 sur le port 8501). T33 est passé par les fonctions du client, parce qu'`AppTest` ne sait pas déposer un fichier. Un essai à la main dans le navigateur est ajouté à « À faire par l'humain ».
+- **Copies modifiées par les tests** (constaté à la fin du TP4) : lancer pytest depuis une copie `Agent_support_info_TPn` y écrivait des caches (`__pycache__/`, `.hypothesis/`). Ce sont des fichiers exclus de Git, mais une copie ne doit plus changer après sa création. Les caches ont été supprimés des quatre copies, dont le `git status` est resté vide. Les vérifications suivantes se font avec `PYTHONDONTWRITEBYTECODE=1` et les caches nettoyés juste après.
+
+### T28 · Le point de départ du TP5
+
+```powershell
+python -m pytest -q
+```
+
+&nbsp;
+
+**Attendu** (cours) : aucun `failed`, 12 tests de plus. **Chez nous** : 15 tests de plus (9 du client, 6 de la page).
+
+**Obtenu** :
+
+```
+Required test coverage of 95% reached. Total coverage: 99.09%
+FAILED tests/test_git_history.py::test_each_member_has_committed
+1 failed, 118 passed, 1 xfailed, 1 warning
+ruff : All checks passed! ; mypy : Success: no issues found in 5 source files
+```
+
+- [x] Conforme, à l'échec d'auteur du TP1 près
+
+### T29 à T31 · La page, l'API prête, les verdicts, l'abstention
+
+```powershell
+uvicorn api.main:app --port 8000
+streamlit run ui/app.py --server.headless true --server.port 8501
+```
+
+&nbsp;
+
+**Obtenu** :
+
+```
+page 8501 : 200
+T29 API ready: tfidf-linearsvc (TP2, models/support.joblib), 21 articles
+T30 My VPN keeps disconnecting... -> Network 91% | Try these steps, then tell us if the problem is solved. | article: VPN disconnects or does not connect | étapes: 5
+T30 The printer on the second floor... -> Hardware 91% | ... | article: Printer offline or not printing | étapes: 5
+T30 non résolu -> Ticket TCK-96F33B78 created and sent to the Poste de travail team.
+T31 I don't know: a technician will sort this incident 18% | Most words of your message are unknown to the agent (it only understands English): a technician will take over.
+T31 ticket -> Ticket TCK-7F7BA72C created and sent to the Tri N1 team.
+```
+
+- [x] Conforme (le nom du groupe, en français, a été corrigé ensuite : voir les décisions)
+
+### T32 · Les erreurs
+
+```
+T32 espaces -> Text refused: empty, only spaces, or more than 2000 characters.
+T32 API arrêtée -> API unreachable: start uvicorn api.main:app first.
+```
+
+- [x] Conforme
+
+### T33 · Un fichier de tickets
+
+**Obtenu** (`data/incidents_exemple.csv`, 8 tickets) :
+
+```
+Network 0.9133 solution | Hardware 0.9131 solution | Billing 0.8348 escalade | Service outage 0.8399 escalade
+I don't know 0.1766 escalade (Tri N1) | I don't know 0.8151 escalade (Tri N1) | Software 0.9269 solution | Account and access 0.9343 solution
+T33 résumé {'INDETERMINE': 2, 'compte_acces': 1, 'facturation': 1, 'logiciel': 1, 'materiel': 1, 'panne_service': 1, 'reseau': 1} | vers un technicien : 4 sur 8
+results.csv écrit (dossier temporaire)
+```
+
+- [x] Conforme
+
+### T34 · Compte rendu, push, CI
+
+**Obtenu** : compte rendu écrit (`docs/semaine5.md`) ; la CI installe maintenant Streamlit. Push et CI : non vérifiables ici.
+
+- [ ] Conforme : **à vérifier après le push**
+
+### Membre B, après le TP5
+
+À faire par le membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, puis T29 à T33 dans son navigateur (`uvicorn api.main:app` et `streamlit run ui/app.py` dans deux terminaux).
