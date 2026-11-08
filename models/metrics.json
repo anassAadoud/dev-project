@@ -1,0 +1,30 @@
+{
+  "source": "demo",
+  "date": "2026-11-08",
+  "n_train": 280,
+  "n_test": 70,
+  "classes": [
+    "compte_acces",
+    "facturation",
+    "logiciel",
+    "materiel",
+    "panne_service",
+    "reseau",
+    "securite"
+  ],
+  "f1_macro": 0.8561,
+  "accuracy": 0.8571,
+  "rappel_par_classe": {
+    "securite": 0.9,
+    "reseau": 0.9,
+    "materiel": 0.8,
+    "compte_acces": 0.9,
+    "facturation": 1.0,
+    "logiciel": 0.8,
+    "panne_service": 0.7
+  },
+  "priorite_f1_macro": 1.0,
+  "priorite_rappel_high": 1.0,
+  "seuil_f1": 0.85,
+  "seuil_f1_cours": 0.85
+}
