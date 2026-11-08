@@ -673,3 +673,13 @@ ERROR:    Application startup failed. Exiting.
 ### Membre B, après le TP3
 
 À faire par le membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, puis les essais T15 à T18.
+
+### Fin du TP3 : graphe, empreinte, étiquette, copie
+
+**Graphe** (`--update`) : 354 nœuds, 590 arêtes, 19 groupes.
+
+**Comparaison avec `sentiment-app`** : « Service FastAPI (api/main) » correspond au groupe « Service FastAPI (api/) » de la référence, avec les mêmes fonctions (`lifespan`, `_classifier`, `health_check`, `predict`, `root`). « Raccord api/model » correspond au raccord `model.py` de la référence (`load_model`, la classe qui enveloppe le modèle), et « Tests de l'API TP3 » à « Tests de l'API TP3 » (`test_root`, `test_health`, les deux 422). **Écarts, voulus par le sujet** : un groupe « Stockage des tickets » (`api/tickets.py`) et la fonction `decider()` (règles d'escalade) n'ont pas d'équivalent dans la référence. `decider()` est reliée par le graphe à la fiche `cas1`, ce qui confirme que les règles codées sont celles du cadrage. Comme dans la référence avant le TP6, `api/model.py` modifie encore `sys.path` pour importer `src/`.
+
+**Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
+
+**Étiquette** `tp3`, puis copie `Agent_support_info_TP3`.
