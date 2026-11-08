@@ -16,33 +16,33 @@ def prediction(label="reseau", score=0.9, priorite="medium", connus=1.0):
 
 
 def test_mots_inconnus_vont_au_tri():
-    decision, raison = decider(prediction(label="INDETERMINE", connus=SEUIL_VOCABULAIRE - 0.1), None)
-    assert decision == "escalade" and "mots" in raison
+    decision, motif, raison = decider(prediction(label="INDETERMINE", connus=SEUIL_VOCABULAIRE - 0.1), None)
+    assert (decision, motif) == ("escalade", "mots_inconnus") and "mots" in raison
 
 
 def test_confiance_basse_va_au_tri():
-    decision, raison = decider(prediction(label="INDETERMINE", score=SEUIL_ABSTENTION - 0.1), None)
-    assert decision == "escalade" and "incertaine" in raison
+    decision, motif, raison = decider(prediction(label="INDETERMINE", score=SEUIL_ABSTENTION - 0.1), None)
+    assert (decision, motif) == ("escalade", "confiance_basse") and "incertaine" in raison
 
 
 def test_priorite_haute_escalade_meme_avec_un_article():
-    decision, raison = decider(prediction(priorite="high"), ARTICLE)
-    assert decision == "escalade" and "priorité haute" in raison
+    decision, motif, raison = decider(prediction(priorite="high"), ARTICLE)
+    assert (decision, motif) == ("escalade", "priorite_haute") and "priorité haute" in raison
 
 
 def test_sans_article_on_escalade():
-    decision, raison = decider(prediction(), None)
-    assert decision == "escalade" and "aucun article" in raison
+    decision, motif, raison = decider(prediction(), None)
+    assert (decision, motif) == ("escalade", "sans_article") and "aucun article" in raison
 
 
 def test_article_qui_demande_toujours_un_technicien():
-    decision, raison = decider(prediction(), {**ARTICLE, "escalade_si": "always: the billing team"})
-    assert decision == "escalade" and ARTICLE["id"] in raison
+    decision, motif, raison = decider(prediction(), {**ARTICLE, "escalade_si": "always: the billing team"})
+    assert (decision, motif) == ("escalade", "article_escalade") and ARTICLE["id"] in raison
 
 
 def test_sinon_la_solution_est_proposee():
-    decision, raison = decider(prediction(), ARTICLE)
-    assert decision == "solution" and ARTICLE["id"] in raison
+    decision, motif, raison = decider(prediction(), ARTICLE)
+    assert (decision, motif) == ("solution", "solution") and ARTICLE["id"] in raison
 
 
 @pytest.mark.parametrize("priorite", ["low", "medium"])

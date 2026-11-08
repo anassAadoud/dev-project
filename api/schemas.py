@@ -9,6 +9,8 @@ Label = Literal["securite", "reseau", "materiel", "compte_acces", "facturation",
                 "INDETERMINE"]
 Priorite = Literal["high", "medium", "low"]
 Decision = Literal["solution", "escalade"]
+# TP5 : le motif de la décision, un code que l'interface traduit pour l'utilisateur.
+Motif = Literal["mots_inconnus", "confiance_basse", "priorite_haute", "sans_article", "article_escalade", "solution"]
 
 EXEMPLE = "My VPN keeps disconnecting every 10 minutes when I work from home"
 
@@ -53,7 +55,8 @@ class AssistResponse(PredictResponse):
     """Le classement, la solution proposée, et la décision d'escalade avec sa raison."""
 
     decision: Decision = Field(..., description="solution : l'utilisateur essaie ; escalade : un technicien prend le relais")
-    raison: str = Field(..., description="Pourquoi cette décision (règles de la fiche cas1)")
+    motif: Motif = Field(..., description="Le motif de la décision, sous forme de code (règles de la fiche cas1)")
+    raison: str = Field(..., description="Pourquoi cette décision, en clair, pour le technicien")
     groupe: str = Field(..., description="Le groupe de techniciens qui recevra le ticket")
     article: Article | None = Field(None, description="L'article proposé, ou rien si aucun ne correspond")
 

@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TypedDict
 
-from api.schemas import Categorie, Decision, Label, Priorite
+from api.schemas import Categorie, Decision, Label, Motif, Priorite
 
 RACINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RACINE / "src"))
@@ -59,6 +59,7 @@ class Assistance(Prediction):
     """Ce que /assist renvoie : la prédiction, l'article et la décision (AssistResponse)."""
 
     decision: Decision
+    motif: Motif
     raison: str
     groupe: str
     article: dict | None
@@ -89,8 +90,8 @@ class SupportClassifier:
         """Classe l'incident, cherche un article, puis applique les règles d'escalade."""
         prediction = self.predict(text)
         article = None if prediction["label"] == "INDETERMINE" else chercher(text, prediction["label"])
-        decision, raison = decider(prediction, article)
-        return {**prediction, "decision": decision, "raison": raison,
+        decision, motif, raison = decider(prediction, article)
+        return {**prediction, "decision": decision, "motif": motif, "raison": raison,
                 "groupe": GROUPES[prediction["label"]], "article": article}
 
 
@@ -101,22 +102,24 @@ def verifier_etiquettes(nom: str, classes: Iterable[object], connues: set[str]) 
         raise ValueError(f"étiquettes inconnues du modèle ({nom}) : {sorted(inconnues)}")
 
 
-def decider(prediction: Prediction, article: dict | None) -> tuple[Decision, str]:
+def decider(prediction: Prediction, article: dict | None) -> tuple[Decision, Motif, str]:
     """Les règles de la fiche cas1, dans l'ordre : la première qui s'applique décide.
-    Dans le doute, on escalade : une escalade inutile coûte moins qu'une escalade manquée."""
+    Dans le doute, on escalade : une escalade inutile coûte moins qu'une escalade manquée.
+    Renvoie la décision, son motif (un code, que l'interface traduit pour l'utilisateur, TP5)
+    et sa raison en clair (pour le technicien et le ticket)."""
     if prediction["label"] == "INDETERMINE":
         if prediction["connus"] < SEUIL_VOCABULAIRE:
-            return "escalade", (f"moins de la moitié des mots sont connus du modèle ({prediction['connus']:.0%}) : "
+            return "escalade", "mots_inconnus", (f"moins de la moitié des mots sont connus du modèle ({prediction['connus']:.0%}) : "
                                 "langue ou vocabulaire inconnus, un technicien trie l'incident")
-        return "escalade", (f"catégorie incertaine (confiance {prediction['score']:.2f} sous {SEUIL_ABSTENTION}) : "
+        return "escalade", "confiance_basse", (f"catégorie incertaine (confiance {prediction['score']:.2f} sous {SEUIL_ABSTENTION}) : "
                             "un technicien trie l'incident")
     if prediction["priorite"] == "high":
-        return "escalade", "priorité haute : un technicien prend l'incident tout de suite"
+        return "escalade", "priorite_haute", "priorité haute : un technicien prend l'incident tout de suite"
     if article is None:
-        return "escalade", "aucun article de la base ne correspond à cet incident"
+        return "escalade", "sans_article", "aucun article de la base ne correspond à cet incident"
     if article["escalade_si"].lower().startswith("always"):
-        return "escalade", f"l'article {article['id']} demande toujours un technicien"
-    return "solution", f"article {article['id']} proposé : l'utilisateur essaie, puis dit si c'est résolu"
+        return "escalade", "article_escalade", f"l'article {article['id']} demande toujours un technicien"
+    return "solution", "solution", f"article {article['id']} proposé : l'utilisateur essaie, puis dit si c'est résolu"
 
 
 def load_model() -> SupportClassifier:
