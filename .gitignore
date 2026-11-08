@@ -51,3 +51,4 @@ htmlcov/
 
 # TP5.1 : les 30 conversations du bilan des tickets
 !data/conversations_30.csv
+!data/jeu_evaluation.csv

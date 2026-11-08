@@ -1,0 +1,95 @@
+text,attendu
+"Someone from 'IT' called me and asked for my login code, I think it was a scam",securite
+"My browser keeps opening ads and a toolbar I never installed",securite
+"I got a text message saying my company account will be closed unless I click a link",securite
+"The antivirus says a trojan was blocked in my downloads folder",securite
+"I left my work phone in a taxi last night",securite
+"There is a strange admin account on the server that nobody created",securite
+"An attachment from an unknown sender asked me to enable macros and I did",securite
+"Our files were renamed with a .locked extension and there is a ransom note",securite
+"I see sign-in alerts from another country on my account",securite
+"A colleague shared his password with me by email, is that a problem",securite
+"Windows Defender keeps popping up a threat warning",securite
+"Somebody plugged an unknown USB key into the reception PC",securite
+"The internet connection keeps dropping at home when I am on the VPN",reseau
+"I have no internet on my desk computer but the Wi-Fi works on my phone",reseau
+"Websites load extremely slowly from the second floor",reseau
+"The VPN client says the server could not be reached",reseau
+"My laptop connects to the guest Wi-Fi but not to the corporate network",reseau
+"Network cable plugged in but Windows says unidentified network",reseau
+"I cannot reach the file share when I work remotely",reseau
+"Video meetings keep freezing because of the bad connection",reseau
+"The Wi-Fi signal is very weak in the warehouse",reseau
+"DNS errors when I try to open internal websites",reseau
+"Remote desktop to my office PC disconnects all the time",reseau
+"The VPN connects but I still cannot open any internal page",reseau
+"My keyboard types the wrong characters and some keys are stuck",materiel
+"The screen of my laptop flickers and goes black",materiel
+"The printer is jammed again on the third floor",materiel
+"My mouse stopped working even after changing the battery",materiel
+"The laptop battery only lasts thirty minutes now",materiel
+"The external monitor is not detected through the docking station",materiel
+"My headset has no sound in calls",materiel
+"The laptop makes a clicking noise and is very hot",materiel
+"The camera shows a black image in meetings",materiel
+"My computer will not power on this morning",materiel
+"The scanner on the ground floor does not feed paper",materiel
+"The USB port of my laptop is broken",materiel
+"I forgot my password and cannot log in to my computer",compte_acces
+"My account was disabled after I came back from holiday",compte_acces
+"I don't have permission to edit the sales spreadsheet on SharePoint",compte_acces
+"The new intern still has no email account",compte_acces
+"The two-factor code never arrives on my phone",compte_acces
+"I need access to the finance application for my new role",compte_acces
+"Login fails with invalid credentials although my password is right",compte_acces
+"I lost access to the shared mailbox of the support team",compte_acces
+"My password expires tomorrow, how do I change it",compte_acces
+"Access denied when I open the HR folder",compte_acces
+"I can't sign in to the CRM since my username changed",compte_acces
+"Please unlock my account, I typed the wrong password too many times",compte_acces
+"We were billed for twenty licences but we only have twelve users",facturation
+"The payment of our renewal failed with the company card",facturation
+"I need a copy of last quarter's invoice",facturation
+"The VAT on our latest invoice is wrong",facturation
+"We cancelled the service but we are still charged every month",facturation
+"Our account shows an unpaid balance that we already paid",facturation
+"Can you refund the duplicate payment from last week",facturation
+"The price on the invoice does not match our contract",facturation
+"We never received the invoice for October",facturation
+"The billing address on our invoices is the old one",facturation
+"Our credit card was charged three times for one order",facturation
+"How can I download the receipt for my payment",facturation
+"Word closes every time I try to print a document",logiciel
+"Outlook asks for my password again and again",logiciel
+"The accounting program shows an error when I export to Excel",logiciel
+"Teams does not start after the last Windows update",logiciel
+"I cannot install the new version of the VPN client, the installer stops",logiciel
+"Chrome crashes whenever I open the reporting dashboard",logiciel
+"My emails are stuck in the outbox",logiciel
+"Excel is very slow with large files and then freezes",logiciel
+"The PDF reader cannot open attachments anymore",logiciel
+"The CRM plugin in Outlook disappeared after the upgrade",logiciel
+"Adobe Acrobat says my licence is not activated",logiciel
+"The update of the ERP client failed with error 0x80070005",logiciel
+"The whole company cannot send emails right now",panne_service
+"The intranet is down for everybody",panne_service
+"Our online shop is offline and customers cannot order",panne_service
+"Nobody in the office can open the ERP since this morning",panne_service
+"The main file server is not responding for any department",panne_service
+"The payment platform is unavailable for all our clients",panne_service
+"All users get an error 503 on the customer portal",panne_service
+"Teams and SharePoint are down for the whole organisation",panne_service
+"The database server crashed and every application is stopped",panne_service
+"None of the branches can connect to the central system",panne_service
+"The company phone system is down in all offices",panne_service
+"Single sign-on is broken for every employee",panne_service
+"What is the weather tomorrow in Paris",hors_sujet
+"Can you recommend a good restaurant near the office",hors_sujet
+"Tell me a joke",hors_sujet
+"Who won the football match yesterday",hors_sujet
+"How do I cook pasta",hors_sujet
+"What is the capital of Australia",hors_sujet
+"I would like to book a meeting room for Friday",hors_sujet
+"Write me a poem about the sea",hors_sujet
+"The coffee in the kitchen is cold",hors_sujet
+"When is the next public holiday",hors_sujet
