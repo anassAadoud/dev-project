@@ -1,7 +1,11 @@
-"""Interface Streamlit (TP5) : elle appelle l'API, jamais le modèle.
+"""Interface Streamlit (TP5, conversation au TP5.1) : elle appelle l'API, jamais le modèle.
 
 Lancer, API déjà démarrée dans un autre terminal : streamlit run ui/app.py
 L'interface est en anglais (l'utilisateur et le modèle le sont) ; le code reste en français.
+
+Quatre onglets : la conversation avec l'agent, le suivi d'un ticket, les statistiques, et le
+tri d'un fichier de tickets (TP5). Streamlit relance le script à chaque clic : la conversation
+(son identifiant et son fil) est gardée dans st.session_state.
 """
 import sys
 from pathlib import Path
@@ -13,58 +17,238 @@ import streamlit as st  # noqa: E402
 
 from ui import client  # noqa: E402
 
-st.set_page_config(page_title="IT Support Agent")
-st.title("IT Support Agent")
+BLEU = "#2a78d6"  # la teinte unique du graphique des catégories (une seule série)
+ICONES = {"securite": "🛡️", "reseau": "🌐", "materiel": "🖥️", "compte_acces": "🔑", "facturation": "💳",
+          "logiciel": "🧩", "panne_service": "🚨", "INDETERMINE": "❔"}
+STYLE = """
+<style>
+  .bloc-etapes {border-left: 3px solid #2a78d6; padding: 0.2rem 0 0.2rem 0.8rem; margin: 0.4rem 0;}
+  .pastille {display: inline-block; padding: 0.05rem 0.55rem; border-radius: 999px; font-size: 0.8rem;
+             border: 1px solid rgba(127,127,127,0.4); margin-right: 0.3rem;}
+  div[data-testid="stChatMessage"] {border-radius: 12px;}
+</style>
+"""
+
+st.set_page_config(page_title="IT Support Agent", page_icon="🛠️")
+st.markdown(STYLE, unsafe_allow_html=True)
 
 session = client.creer_session()
 etat = client.sante(session)
-if etat.ok:
-    st.caption(f"API ready: {etat.message}")
-else:
-    st.error(etat.message)
+st.session_state.setdefault("fil", [])
 
-onglet_incident, onglet_lot = st.tabs(["Report an incident", "A file of tickets"])
 
-with onglet_incident:
-    texte = st.text_area("Describe your incident (in English)", key="texte")
-    if st.button("Get help", key="aider"):
-        # Streamlit relance le script à chaque clic : la réponse est gardée dans st.session_state.
-        st.session_state["aide"] = client.assister(session, texte)
-        st.session_state["texte_aide"] = texte
-        st.session_state.pop("ticket", None)
+def nouvelle_conversation() -> None:
+    for cle in ["conv_id", "erreur", "avis"]:
+        st.session_state.pop(cle, None)
+    st.session_state["fil"] = []
 
-    aide: client.Reponse | None = st.session_state.get("aide")
-    if aide is not None and not aide.ok:
-        (st.warning if aide.message == client.REFUS else st.error)(aide.message)
-    elif aide is not None:
-        st.metric(client.VERDICTS[aide.label or "INDETERMINE"], f"{aide.score:.0%}")
-        if aide.decision == "escalade":
-            st.warning(aide.message)
+
+def envoyer(action: str, dit: str, **champs) -> None:
+    """Un tour : la phrase de l'utilisateur dans le fil, l'appel à /chat, la réponse de l'agent.
+    Appelée par les boutons (on_click) avant que la page ne soit redessinée."""
+    if action == "pas_resolu":
+        champs["etapes_faites"] = etapes_cochees()
+    reponse = client.discuter(session, action, st.session_state.get("conv_id"), **champs)
+    if not reponse.ok:
+        st.session_state["erreur"] = reponse.message
+        return
+    st.session_state.pop("erreur", None)
+    st.session_state["conv_id"] = reponse.conversation_id
+    st.session_state["fil"] += [{"role": "user", "texte": dit}, {"role": "assistant", "reponse": reponse}]
+    if reponse.ticket:
+        st.session_state["dernier_ticket"] = reponse.ticket["id"]
+
+
+def derniere_reponse() -> client.Reponse | None:
+    fil = st.session_state.get("fil") or []
+    return fil[-1]["reponse"] if fil else None
+
+
+def etapes_cochees() -> list[str]:
+    """Les étapes de la dernière réponse que l'utilisateur a cochées."""
+    r = derniere_reponse()
+    if r is None or not r.article:
+        return []
+    return [etape for numero, etape in enumerate(r.article["etapes"], start=1)
+            if st.session_state.get(f"etape-{r.conversation_id}-{r.tour}-{numero}")]
+
+
+def soumettre() -> None:
+    """Le message tapé : il continue la conversation, ou en commence une si la précédente est finie."""
+    texte = st.session_state.get("saisie")
+    if not texte:
+        return
+    r = derniere_reponse()
+    if r is None or not r.choix:
+        nouvelle_conversation()
+    envoyer("message", texte, texte=texte)
+
+
+def noter(r: client.Reponse, utile: bool) -> None:
+    if client.donner_avis(session, r.conversation_id or "", r.tour or 0, utile).ok:
+        st.session_state.setdefault("avis", {})[f"{r.conversation_id}-{r.tour}"] = utile
+
+
+def libelle(categorie: str | None) -> str:
+    return f"{ICONES.get(categorie or 'INDETERMINE', '')} {client.VERDICTS[categorie or 'INDETERMINE']}"
+
+
+def afficher_reponse(r: client.Reponse, derniere: bool) -> None:
+    """Le message de l'agent ; les étapes ne sont cochables que dans la dernière réponse."""
+    st.markdown(r.message)
+    categorie = r.corps.get("categorie")
+    if categorie:
+        st.markdown(f'<span class="pastille">{libelle(categorie)}</span>'
+                    f'<span class="pastille">confidence {r.score:.0%}</span>'
+                    f'<span class="pastille">priority {r.priorite}</span>', unsafe_allow_html=True)
+    if r.corps.get("reformulation"):
+        st.info(r.corps["reformulation"], icon="💡")
+    if r.article:
+        st.markdown(f"**{r.article['titre']}** · <small>article {r.article['id']}</small>", unsafe_allow_html=True)
+        st.markdown('<div class="bloc-etapes">', unsafe_allow_html=True)
+        for numero, etape in enumerate(r.article["etapes"], start=1):
+            if derniere:
+                st.checkbox(f"{numero}. {etape}", key=f"etape-{r.conversation_id}-{r.tour}-{numero}")
+            else:
+                st.markdown(f"{numero}. {etape}")
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.caption(f"Ask for a technician if: {r.article['escalade_si']}")
+    semblable = r.corps.get("ticket_semblable")
+    if semblable:
+        with st.expander(f"📎 A similar past ticket was solved ({semblable['similarite']:.0%} similar)"):
+            st.caption(f"{semblable['id']} · {semblable['source']}")
+            st.markdown(f"> {semblable['text']}")
+            st.markdown(f"**How it was solved:** {semblable['resolution']}")
+    if r.ticket:
+        st.success(f"Ticket **{r.ticket['id']}** created and sent to the **{r.ticket['groupe']}** team "
+                   f"(status: {client.STATUTS[r.ticket['statut']]}).", icon="🎫")
+    cle = f"{r.conversation_id}-{r.tour}"
+    if cle in st.session_state.get("avis", {}):
+        st.caption("Thanks for your feedback!")
+    else:
+        haut, bas, _ = st.columns([1, 1, 8])
+        for colonne, utile, icone in [(haut, True, "👍"), (bas, False, "👎")]:
+            colonne.button(icone, key=f"avis-{cle}-{'haut' if utile else 'bas'}", help="Was this answer useful?",
+                           on_click=noter, args=(r, utile))
+
+
+def boutons(r: client.Reponse) -> None:
+    """Les réponses possibles à la dernière question de l'agent (le champ choix de /chat)."""
+    if "categorie" in r.choix:
+        st.caption("What kind of problem is it?")
+        colonnes = st.columns(4)
+        for i, categorie in enumerate(r.categories):
+            colonnes[i % 4].button(libelle(categorie), key=f"cat-{categorie}", use_container_width=True,
+                                   on_click=envoyer, args=("categorie", f"It is about: {client.VERDICTS[categorie]}"),
+                                   kwargs={"categorie": categorie})
+    actions = [("confirmer_ticket", "🎫 Yes, create the ticket", "Yes, please create the ticket.", "primary"),
+               ("refuser_ticket", "Not now", "No ticket for now.", "secondary"),
+               ("resolu", "✅ Solved", "It's solved, thanks!", "primary"),
+               ("pas_resolu", "❌ Not solved", "It's still not working.", "secondary"),
+               ("demander_ticket", "🙋 Ask for a technician", "I'd like a technician.", "secondary")]
+    visibles = [a for a in actions if a[0] in r.choix]
+    if visibles:
+        for colonne, (action, texte, dit, genre) in zip(st.columns(len(visibles)), visibles, strict=True):
+            colonne.button(texte, key=action, type=genre, use_container_width=True, on_click=envoyer,
+                           args=(action, dit))
+
+
+with st.sidebar:
+    st.title("🛠️ IT Support Agent")
+    if etat.ok:
+        st.caption(f"API ready: {etat.message}")
+    else:
+        st.error(etat.message)
+    st.button("➕ New conversation", key="nouvelle", use_container_width=True, on_click=nouvelle_conversation)
+    if st.session_state.get("conv_id"):
+        st.caption(f"Conversation {st.session_state['conv_id']}")
+    st.markdown("**How it works**\n\n1. Describe your problem.\n2. Try the suggested steps.\n"
+                "3. Tell the agent if it is solved.\n\nA ticket is only created when the agent cannot solve it, "
+                "when you ask for a technician, or for a critical case, and always after you confirm.")
+
+onglet_chat, onglet_suivi, onglet_stats, onglet_lot = st.tabs(
+    ["💬 Chat", "🎫 Track a ticket", "📊 Statistics", "📄 A file of tickets"])
+
+with onglet_chat:
+    fil = st.session_state["fil"]
+    if not fil:
+        with st.chat_message("assistant", avatar="🛠️"):
+            st.markdown("Hello! Describe your IT problem in English, and I will help you solve it step by step.")
+    for i, entree in enumerate(fil):
+        if entree["role"] == "user":
+            with st.chat_message("user"):
+                st.markdown(entree["texte"])
         else:
-            st.info(aide.message)
+            with st.chat_message("assistant", avatar="🛠️"):
+                afficher_reponse(entree["reponse"], derniere=i == len(fil) - 1)
+    derniere = derniere_reponse()
+    if derniere is not None:
+        boutons(derniere)
+    if st.session_state.get("erreur"):
+        (st.warning if st.session_state["erreur"] == client.REFUS else st.error)(st.session_state["erreur"])
 
-        if aide.article:
-            st.subheader(aide.article["titre"])
-            st.caption(f"Article {aide.article['id']} of the knowledge base")
-            for numero, etape in enumerate(aide.article["etapes"], start=1):
-                st.checkbox(f"{numero}. {etape}", key=f"etape-{numero}")
-            st.caption(f"Ask for a technician if: {aide.article['escalade_si']}")
+    terminee = derniere is None or not derniere.choix
+    invite = "Describe your incident in English…" if terminee else "Add a detail or answer the agent…"
+    st.chat_input(invite, key="saisie", on_submit=soumettre)
 
-        if aide.decision == "solution":
-            resolu = st.radio("Is it solved?", ["Yes", "No"], index=None, horizontal=True, key="resolu")
-            if resolu == "Yes":
-                st.success("Great, the incident is closed. No ticket was created.")
-            elif resolu == "No" and "ticket" not in st.session_state:
-                st.session_state["ticket"] = client.creer_ticket(
-                    session, st.session_state["texte_aide"], aide,
-                    raison=f"not solved after article {aide.article['id']}" if aide.article else "not solved")
-        elif "ticket" not in st.session_state and st.button("Create the ticket", key="creer"):
-            st.session_state["ticket"] = client.creer_ticket(session, st.session_state["texte_aide"], aide,
-                                                             raison=aide.corps.get("raison", ""))
+with onglet_suivi:
+    identifiant = st.text_input("Ticket ID", value=st.session_state.get("dernier_ticket", ""), key="suivi_id",
+                                placeholder="TCK-1234ABCD")
+    if st.button("Check the status", key="suivre") and identifiant.strip():
+        st.session_state["suivi"] = client.suivre_ticket(session, identifiant)
+    suivi: client.Reponse | None = st.session_state.get("suivi")
+    if suivi is not None and not suivi.ok:
+        st.warning(suivi.message)
+    elif suivi is not None and suivi.ticket:
+        t = suivi.ticket
+        st.subheader(suivi.message)
+        a, b, c = st.columns(3)
+        a.metric("Team", t["groupe"])
+        b.metric("Category", client.VERDICTS[t["label"]])
+        c.metric("Priority", t["priorite"])
+        if t.get("resume"):
+            st.markdown(f"**Summary:** {t['resume']}")
+        for essai in t.get("essais", []):
+            st.caption(f"Already tried: {essai['titre']} ({essai['article_id']})")
+        if t.get("resolution"):
+            st.success(f"Resolution: {t['resolution']}")
+        st.dataframe(pd.DataFrame([{"when": e["le"], "status": client.STATUTS[e["statut"]],
+                                    "comment": e.get("commentaire") or ""} for e in t.get("historique", [])]),
+                     hide_index=True, use_container_width=True)
+        with st.expander("Technician: update this ticket"):
+            statut = st.selectbox("Status", list(client.STATUTS), format_func=client.STATUTS.get, key="statut")
+            commentaire = st.text_input("Comment", key="commentaire")
+            resolution = st.text_area("Resolution (shown to users with a similar problem)", key="resolution")
+            if st.button("Update the ticket", key="maj"):
+                maj = client.mettre_a_jour_ticket(session, t["id"], statut, commentaire, resolution)
+                st.session_state["suivi"] = client.suivre_ticket(session, t["id"]) if maj.ok else maj
+                (st.success if maj.ok else st.warning)(maj.message)
 
-        ticket: client.Reponse | None = st.session_state.get("ticket")
-        if ticket is not None:
-            (st.success if ticket.ok else st.error)(ticket.message)
+with onglet_stats:
+    stats = client.statistiques(session)
+    if not stats.ok:
+        st.warning(stats.message)
+    else:
+        s = stats.corps
+        taux = s["taux_resolution_sans_ticket"]
+        a, b, c, d = st.columns(4)
+        a.metric("Solved without a ticket", "—" if taux is None else f"{taux:.0%}",
+                 help="Finished conversations solved by the agent alone")
+        b.metric("Conversations", s["conversations"], help=f"{s['en_cours']} still open")
+        c.metric("Tickets", s["avec_ticket"])
+        d.metric("Useful answers", f"👍 {s['avis_utiles']} · 👎 {s['avis_pas_utiles']}")
+        if s["categories"]:
+            st.markdown("**Most frequent categories**")
+            frequentes = pd.DataFrame({"category": [client.VERDICTS[k] for k in s["categories"]],
+                                       "conversations": list(s["categories"].values())})
+            st.bar_chart(frequentes, x="category", y="conversations", color=BLEU, horizontal=True)
+            with st.expander("See the numbers"):
+                st.dataframe(frequentes, hide_index=True, use_container_width=True)
+        else:
+            st.caption("No conversation yet.")
+        if s["tickets_par_statut"]:
+            st.caption("Tickets by status: " + ", ".join(f"{client.STATUTS[k]} {v}"
+                                                         for k, v in s["tickets_par_statut"].items()))
 
 with onglet_lot:
     fichier = st.file_uploader("CSV file of tickets with a text column", type="csv")

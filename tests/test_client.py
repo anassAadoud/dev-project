@@ -78,3 +78,62 @@ def test_lot_et_resume(session):
                                              "xqzvb wlkptr grombu", "   "])
     assert client.resumer(reponses) == {"INDETERMINE": 1, "REFUSED OR ERROR": 1, "reseau": 1}
     assert client.a_escalader(reponses) == 1
+
+
+# --- TP5.1 : la conversation, le suivi, les avis, les statistiques ---
+
+def test_conversation_jusqu_a_resolu(session):
+    r = client.discuter(session, texte="My VPN keeps disconnecting every 10 minutes when I work from home")
+    assert r.ok and r.phase == "solution" and r.code == "solution" and r.message == client.REPLIQUES["solution"]
+    assert r.conversation_id and r.tour == 1 and "resolu" in r.choix and r.article
+    fin = client.discuter(session, "resolu", r.conversation_id)
+    assert fin.ok and fin.phase == "resolu" and fin.choix == []
+
+
+def test_conversation_jusqu_au_ticket_puis_suivi(session):
+    r = client.discuter(session, texte="Please open a ticket, my VPN keeps disconnecting")
+    assert r.code == "demande" and r.ticket is None
+    r = client.discuter(session, "confirmer_ticket", r.conversation_id)
+    assert r.ok and r.ticket and r.groupe == "Network"
+    suivi = client.suivre_ticket(session, r.ticket["id"].lower())  # l'identifiant tapé en minuscules
+    assert suivi.ok and suivi.message.endswith("Open")
+    maj = client.mettre_a_jour_ticket(session, r.ticket["id"], "resolu", "done", "VPN profile reinstalled")
+    assert maj.ok and "Resolved" in maj.message
+    assert client.discuter(session, "confirmer_ticket", r.conversation_id).message == client.HORS_DE_PROPOS
+
+
+def test_avis_et_statistiques(session):
+    r = client.discuter(session, texte="Outlook stopped receiving emails since this morning")
+    assert client.donner_avis(session, r.conversation_id, 1, True).ok
+    assert client.donner_avis(session, "CNV-INCONNUE", 1, True).message == client.INTROUVABLE
+    stats = client.statistiques(session)
+    assert stats.ok and stats.corps["avis_utiles"] >= 1 and stats.corps["conversations"] >= 1
+
+
+def test_suivi_introuvable(session):
+    assert client.suivre_ticket(session, "TCK-INCONNU").message == client.INTROUVABLE
+    assert client.mettre_a_jour_ticket(session, "TCK-INCONNU", "resolu").message == client.INTROUVABLE
+
+
+def test_refus_et_api_injoignable_tp5_1(session):
+    assert client.discuter(session, texte="   ").message == client.REFUS
+    with httpx.Client(base_url="http://127.0.0.1:9", timeout=1) as sans_serveur:
+        for reponse in [client.discuter(sans_serveur, texte="VPN"), client.donner_avis(sans_serveur, "C", 1, True),
+                        client.suivre_ticket(sans_serveur, "TCK-1"), client.statistiques(sans_serveur),
+                        client.mettre_a_jour_ticket(sans_serveur, "TCK-1", "resolu")]:
+            assert reponse.message == client.INJOIGNABLE
+
+
+def test_conversation_sans_modele(session, monkeypatch):
+    from api.main import app
+
+    monkeypatch.setattr(app.state, "classifier", None)
+    assert client.discuter(session, texte="VPN").message == client.SANS_MODELE
+
+
+def test_chaque_code_a_sa_replique():
+    from typing import get_args
+
+    from api.schemas import Code, Statut
+
+    assert set(client.REPLIQUES) == set(get_args(Code)) and set(client.STATUTS) == set(get_args(Statut))
