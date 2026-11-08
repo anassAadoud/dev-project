@@ -43,6 +43,7 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP1 | Vérifier l'onglet Actions (CI verte) et refaire le clone frais T7 depuis GitHub | Les deux |
 | TP2 | `git pull`, `python src/make_demo.py`, `python src/train.py`, `python -m pytest -q` ; vérifier la CI après le push | Membre B |
 | TP3 | Vérifier la CI (T19) ; membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, essais T15 à T18 | Les deux |
+| TP4 | Membre B : `pip install -r requirements-dev.txt`, `pre-commit install`, ses dix incidents du jeu d'or ; vérifier la CI (T27) | Les deux |
 | Tous | Captures d'écran dans `docs/captures/` si l'enseignant les exige | Les deux |
 
 ## Écarts au guide et à la méthode
@@ -60,6 +61,8 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP2 | Jeu de démonstration de 350 incidents en 7 catégories (au lieu de 290 avis en 2 classes) | Mêmes 7 catégories que le jeu réel ; 10 incidents mêlés par catégorie jouent le rôle des avis mitigés |
 | TP3 | Routes en plus de `/health` et `/predict` : `/assist`, `/tickets`, `/tickets/{id}` ; 10 tests d'API au lieu de 6 | Fonctionnalités du sujet 9 (solution, ticket, escalade) |
 | TP3 | La réponse du ticket passé le plus proche (`answer` de Tobi-Bueck) n'est pas exposée | L'API de la CI tourne sans réseau sur le modèle de démonstration ; facultatif dans le cadrage |
+| TP4 | Seuil d'abstention 0,60 et garde-fou de vocabulaire (deux causes d'abstention) | Seuil mesuré sur les deux jeux ; garde-fou tiré du notebook (section 15.1) |
+| TP4 | Les 20 incidents du jeu d'or sont écrits par le membre A seul | Le guide demande dix incidents par membre : le membre B doit compléter ou remplacer les siens |
 
 ---
 
@@ -683,3 +686,134 @@ ERROR:    Application startup failed. Exiting.
 **Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
 
 **Étiquette** `tp3`, puis copie `Agent_support_info_TP3`.
+
+---
+
+## TP4 : tests approfondis et qualité
+
+**Date** : 8 novembre 2026 · **Fait par** : membre A (avec Claude Code)
+
+**Ce qui a été fait.** Outils de qualité (`requirements-dev.txt`, `pyproject.toml`, `.pre-commit-config.yaml`), mesurés avant toute correction. `tests/test_limites.py` : 8 cas aux frontières et 2 propriétés hypothesis, puis la correction du schéma. L'abstention `INDETERMINE` combine le seuil mesuré par `src/courbe_seuil.py` et le garde-fou de vocabulaire. Le jeu d'or `data/jeu_or.csv` compte 20 incidents, dont 10 difficiles, avec `src/bilan_jeu_or.py` et `tests/test_jeu_or.py`. Viennent ensuite `tests/test_integration.py`, `tests/test_escalade.py` (les règles de la fiche `cas1`), le contrat typé, ruff et mypy muets, le crochet pre-commit, la CI étendue et `docs/semaine4.md`. Six défauts ont été trouvés et corrigés (tableau de `docs/semaine4.md`, partie 2).
+
+**Décisions et raisons.**
+
+- **Seuil d'abstention 0,60** au lieu de 0,5 : mesuré sur les deux jeux. Sur les données réelles, les erreurs baissent d'un tiers pour 17 % d'incidents envoyés au tri. Changement signalé dans la fiche du projet.
+- **Deux causes d'abstention**, le seuil et le garde-fou de vocabulaire, et deux raisons distinctes dans `/assist` : le technicien du tri sait si le texte était hors langue ou seulement ambigu. `predict()` renvoie la part de mots connus, et `api/model.py` décide.
+- **Une erreur du jeu d'or déclarée, pas corrigée** : « It does not work » (`compte_acces`, 0,85). Une règle de longueur minimale est une piste, mais la régler sur le jeu d'or reviendrait à tricher avec lui.
+- **`tests/test_escalade.py`** : 8 tests sans modèle pour les règles de la fiche `cas1`. Ils ont été écrits parce que la couverture montrait deux règles jamais exécutées, et non pour atteindre 95 %, déjà dépassé.
+- **Conflits de version à l'installation des outils** : `packaging` 26 et `platformdirs` 4 sont plus récents que ce que demandent streamlit, mlflow et dvc. Le guide classe le cas de streamlit sans conséquence (p. 86), et mlflow et dvc ne servent pas avant le TP7. Aucun test n'en est affecté.
+
+### T21 · Le point de départ, mesuré
+
+```powershell
+pip install -r requirements-dev.txt
+python src/train.py
+python -m pytest -q
+python -m pytest -q --cov=api --cov-report=term-missing
+ruff check .
+mypy api
+```
+
+&nbsp;
+
+**Attendu** (cours) : `1 failed, 51 passed, 1 skipped` avec le kit ; mesures recopiées dans `docs/semaine4.md`. **Chez nous**, sans kit : les tests du TP3, puis les trois mesures.
+
+**Obtenu** :
+
+```
+F1 macro sur le jeu de test : 0.856
+1 failed, 51 passed, 1 warning                     (l'échec : un seul auteur)
+api\main.py         74      7    91%   54, 89-90, 104-105, 125-127
+api\model.py        31      2    94%   57, 59
+api\schemas.py      44      0   100%
+api\tickets.py      26      1    96%   36
+TOTAL              175     10    94%
+ruff : Found 1 error.  (I001 dans api/main.py)
+mypy : Success: no issues found in 5 source files
+```
+
+- [x] Conforme : les mesures sont dans `docs/semaine4.md`, parties 1 et 5
+
+### T22 · Une seule forme de refus
+
+**Attendu** : `{"text": "   "}` reçoit 422 avec `detail` en liste, comme `{"text": ""}`.
+
+**Obtenu** (avant la correction : `2 failed, 8 passed`, `detail n'est pas une liste d'erreurs : 'texte vide'`, `Falsifying example: texte='\x85'`) ; après :
+
+```
+'   ' 422 value_error Value error, texte vide : il ne contient que des blancs
+''    422 string_too_short String should have at least 1 character
+```
+
+- [x] Conforme
+
+### T23 · Les propriétés tiennent
+
+```
+run 1 : 10 passed, 1 warning in 5.56s
+run 2 : 10 passed, 1 warning in 4.56s
+run 3 : 10 passed, 1 warning in 4.09s
+```
+
+- [x] Conforme
+
+### T24 · Le modèle se tait quand il ne sait rien
+
+**Obtenu** (avant : `logiciel` 0,1766 pour trois charabias, `reseau` 0,8151 pour le message en français) ; après :
+
+```
+xqzvb wlkptr grombu -> INDETERMINE 0.1766 0.0
+Mon VPN ne se connecte plus depuis ce matin -> INDETERMINE 0.8151 0.1111
+assist -> escalade Tri N1 | moins de la moitié des mots sont connus du modèle (11%) : langue ou vocabulaire inconnus, un technicien trie l'incident
+```
+
+- [x] Conforme
+
+**Commentaire** :
+
+> La confiance reste renvoyée, et la même qu'avant, comme le demande l'énoncé. Le message en français montre pourquoi le seuil seul ne suffisait pas : 0,8151, c'est au-dessus de tout seuil raisonnable.
+
+### T25 · Le jeu d'or est vert
+
+```
+Bilan sur 20 incidents : abstention 5, erreur franche 1, juste 14       (avant déclaration)
+20 passed, 1 xfailed, 1 warning in 3.80s                                (après déclaration de « It does not work »)
+```
+
+- [x] Conforme
+
+### T26 · Pannes en 500, couverture à 95 %
+
+**Obtenu** (avant correction : `8 failed, 4 passed` dans `test_integration.py`, dont `assert 422 == 500` sur les trois routes) ; après :
+
+```
+api\main.py         77      2    97%   135-137
+api\model.py        38      0   100%
+api\schemas.py      52      0   100%
+api\tickets.py      26      0   100%
+Required test coverage of 95% reached. Total coverage: 98.96%
+```
+
+- [x] Conforme
+
+### T27 · Tout est vert, en local (CI : après le push)
+
+```
+ruff check .   -> Found 3 errors (3 fixed, 0 remaining) ; puis All checks passed!
+mypy api       -> Success: no issues found in 5 source files
+pytest --cov   -> Required test coverage of 95% reached. Total coverage: 99.07%
+                  1 failed, 103 passed, 1 xfailed            (l'échec : un seul auteur)
+pre-commit, commit d'essai avec « import os » :
+ruff (erreurs probables, imports)........Failed   F401 [*] `os` imported but unused
+mypy (contrat typé de l'API).............Passed   -> commit refusé, HEAD inchangé
+```
+
+- [x] Conforme en local ; CI à vérifier après le push
+
+**Commentaire** :
+
+> Le corrigé du cours donne `83 passed, 2 xfailed`. Nous avons plus de tests (API plus large, règles d'escalade), aucun `failed` hors l'auteur unique, et un seul `xfailed`. La CI enchaîne maintenant l'entraînement de démonstration, ruff, mypy, puis pytest avec `--cov-fail-under=95`.
+
+### Membre B, après le TP4
+
+À faire par le membre B : `git pull`, `pip install -r requirements-dev.txt`, `pre-commit install` dans son clone, `python src/train.py`, `python -m pytest -q`. Il écrit aussi ses dix incidents du jeu d'or : les vingt actuels ont été écrits par le membre A, ce qui est un écart à la répartition du guide (« dix chacun »).

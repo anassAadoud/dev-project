@@ -151,7 +151,7 @@ Données d'entraînement fictives et publiques (licence non commerciale). Les in
 
 | Paramètre | Valeur de départ | Où il sera mesuré |
 | --- | --- | --- |
-| `SEUIL_ABSTENTION` | 0,5 | `src/courbe_seuil.py` (TP4) |
+| `SEUIL_ABSTENTION` | 0,5 ; **0,60 depuis le TP4** (mesuré, voir `docs/semaine4.md`) | `src/courbe_seuil.py` (TP4) |
 | Garde-fou de vocabulaire | `INDETERMINE` si moins de 50 % des mots sont connus du modèle | notebook, section 15.1 ; TP4 |
 | Découpage | 80 / 20 stratifié, graine 42, **avant** la vectorisation | `src/train.py` (TP2) |
 | Modèle | TF-IDF (1-2 grammes, `min_df=2`, `sublinear_tf`) + `LinearSVC` calibré, `class_weight="balanced"` | `src/train.py` (TP2) |
@@ -169,3 +169,4 @@ Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST
 | 2026-11-08 | TP1 | Cadrage du projet ajouté sous la version initiale ; trois fiches `cas*.md` |
 | 2026-11-08 | TP2 | Données réelles : 8 452 incidents étiquetés (pas de filtre sur les queues rares) ; F1 macro mesuré 0,789 sur Tobi-Bueck, 0,856 sur la démonstration ; priorité : F1 0,661, rappel `high` 0,717 |
 | 2026-11-08 | TP3 | Base de connaissances écrite : 21 articles (3 par catégorie) ; seuil de similarité 0,10 ; routes `/assist` et `/tickets` en place ; la réponse du ticket passé n'est pas exposée |
+| 2026-11-08 | TP4 | `SEUIL_ABSTENTION` passe de 0,5 à 0,60 (courbe du seuil sur la démonstration et sur Tobi-Bueck) ; garde-fou de vocabulaire branché dans l'API ; `INDETERMINE` → groupe « Tri N1 » |
