@@ -1087,4 +1087,6 @@ python src/train.py : Vocabulaire : 1412 termes ; F1 macro sur le jeu de test : 
 
 **Icônes au lieu des emojis** (demande du binôme, après la première copie) : la page utilise les icônes Material de Streamlit (`:material/...:`) pour l'agent, les onglets, les boutons et les catégories ; les avis deviennent « Useful » / « Not useful ». Un test vérifie qu'aucun emoji ne reste dans `ui/`. L'étiquette `tp5.1` a été déplacée sur ce commit et la copie `Agent_support_info_TP5.1` refaite (`robocopy /MIR`, mêmes exclusions). Les messages des commits précédents gardent leurs emojis : l'historique n'est pas réécrit.
 
+**Qualité des réponses** (après la copie des icônes) : jeu d'évaluation, jeu de démonstration enrichi, second avis de la base, garde-fou sans mots vides (T5.1-e). Graphe refait : 847 nœuds, 1 625 arêtes, 39 groupes. Empreinte de `sentiment-app/` : 58 813 fichiers, aucune différence. L'étiquette `tp5.1` est déplacée sur le dernier commit et la copie `Agent_support_info_TP5.1` refaite (`robocopy /MIR`).
+
 **TP6** : pas encore fait. Il partira de cette version.
