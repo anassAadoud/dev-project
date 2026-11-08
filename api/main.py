@@ -11,9 +11,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from api import tickets
-from api.model import GROUPES, SupportClassifier, load_model
-from api.schemas import (AssistResponse, HealthResponse, PredictRequest, PredictResponse, Ticket,
-                         TicketRequest)
+from api.model import GROUPES, Assistance, Prediction, SupportClassifier, load_model
+from api.schemas import AssistResponse, HealthResponse, PredictRequest, PredictResponse, Ticket, TicketRequest
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("support_api")
@@ -68,7 +67,7 @@ async def health_check() -> dict:
 
 
 @app.post("/predict", response_model=PredictResponse, summary="Classer un incident")
-async def predict(request: PredictRequest) -> dict:
+async def predict(request: PredictRequest) -> Prediction:
     """Renvoie la catégorie IT (ou INDETERMINE), la confiance, la priorité et la part de mots connus.
 
     - 422 : texte refusé par le contrat (vide, que des blancs, plus de 2000 caractères)
@@ -87,7 +86,7 @@ async def predict(request: PredictRequest) -> dict:
 
 
 @app.post("/assist", response_model=AssistResponse, summary="Proposer une solution ou escalader")
-async def assist(request: PredictRequest) -> dict:
+async def assist(request: PredictRequest) -> Assistance:
     """Classe l'incident, propose l'article le plus proche de la base, et décide :
     « solution » (l'utilisateur essaie les étapes) ou « escalade » (vers le groupe indiqué)."""
     clf = _classifier()

@@ -39,8 +39,8 @@ def test_refus_de_demarrer_sans_modele(monkeypatch, tmp_path):
     """D.2 : modèle introuvable, l'API refuse de démarrer plutôt que de répondre faux."""
     from fastapi.testclient import TestClient
 
-    from api.main import app
     import predict  # le module que l'API utilise vraiment (src/ est sur le chemin depuis api.model)
+    from api.main import app
 
     monkeypatch.setattr(predict, "MODELE", tmp_path / "absent.joblib")
     predict.charger_modele.cache_clear()  # sinon le modèle déjà chargé resterait en mémoire
@@ -110,3 +110,18 @@ def test_ticket_d_un_incident_indetermine_va_au_tri(client):
 def test_lire_un_ticket_sans_fichier_repond_404(client):
     """Avant le premier ticket, le fichier n'existe pas : la lecture répond 404, sans planter."""
     assert client.get("/tickets/TCK-00000000").status_code == 404
+
+
+@pytest.mark.parametrize("nom, classes", [("categorie", ("network", "printer")), ("priorite", ("urgent", "low"))])
+def test_refus_des_etiquettes_inconnues(monkeypatch, nom, classes):
+    """Un modèle aux étiquettes que le contrat ignore est refusé dès le démarrage (TP4, étape E)."""
+    import api.model
+
+    class Modele:
+        def __init__(self, etiquettes):
+            self.classes_ = etiquettes
+
+    modeles = {"categorie": Modele(("reseau", "logiciel")), "priorite": Modele(("high", "low")), nom: Modele(classes)}
+    monkeypatch.setattr(api.model, "charger_modele", lambda: modeles)
+    with pytest.raises(ValueError, match="étiquettes inconnues"):
+        api.model.load_model()
