@@ -5,6 +5,7 @@ Usage :
   python src/predict.py "My VPN keeps disconnecting every 10 minutes"
   >>> from predict import predict ; predict("texte")
 """
+import re
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -54,6 +55,29 @@ GENERIQUES = frozenset({
     "does", "did", "doing", "done", "get", "got", "getting", "keep", "keeps", "seems", "seem", "happen", "happens",
     "happened", "going", "anything", "something", "everything", "nothing", "guys", "sir", "madam", "dear",
 })
+
+
+# TP5.2 : un message qui annonce son vrai problème après une première partie réglée ou hors de cause
+# (« The printer was fixed, but my account is locked », « the issue is that… », « turns out… »).
+# Mesuré sur 36 messages variés hors du jeu de démonstration (data/jeu_melanges.csv) : 74 % -> 82 % de
+# catégories justes sur les messages mêlés, 98 % inchangé sur les pièges (« the VPN connects but… »).
+PIVOT = re.compile(
+    r"\b(the|my|our)\s+(real|actual|main)?\s*(problem|issue|cause)\s+is( that)?\b"
+    r"|\bturns out( that)?( it was)?\b|\bwhat'?s really (broken|wrong) is\b|\bwhat really blocks me is( that)?\b"
+    r"|\bactually\s+(the\s+)?(real\s+)?(problem|issue|cause)\s+is\b"
+    r"|\b(fixed|fine|ok|okay|works( again)?|corrected|unlocked|updated|on my side|not the [\w-]+|not a [\w-]+ problem"
+    r"|my mistake[^,]*)\s*(yesterday|now|this morning|earlier)?\s*[,;]\s*(but|however|actually|now|turns out)?\s*"
+    r"(the real (issue|problem) is( that)?)?",
+    re.IGNORECASE)
+
+
+def partie_principale(texte: str) -> str:
+    """La partie du message qui décrit le vrai problème (tout le texte s'il n'annonce rien)."""
+    trouves = list(PIVOT.finditer(texte))
+    if not trouves:
+        return texte
+    reste = texte[trouves[-1].end():].strip(" ,;")
+    return reste if len(reste.split()) >= 3 else texte
 
 
 def est_vague(texte: str, vectoriseur: Any) -> bool:

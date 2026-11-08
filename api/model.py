@@ -33,14 +33,19 @@ sys.path.insert(0, str(RACINE / "src"))
 from historique import charger_historique, plus_semblable  # noqa: E402
 from kb import article_le_plus_proche, categories_proches, charger_base  # noqa: E402
 from kb import chercher as _chercher  # noqa: E402
-from predict import charger_modele, est_vague, vectoriseur_mots  # noqa: E402
+from predict import charger_modele, est_vague, partie_principale, vectoriseur_mots  # noqa: E402
 from predict import predict as _predict  # noqa: E402
+from priorite import impact_general  # noqa: E402
+from priorite import priorite as _priorite  # noqa: E402
 
 # Seuils choisis avec python src/courbe_seuil.py et le notebook (voir docs/semaine4.md).
 SEUIL_ABSTENTION = 0.60
 SEUIL_VOCABULAIRE = 0.50
 # TP5.1 : similarité minimale de l'article le plus proche pour que la base tranche à la place du modèle.
 # Mesuré sur le jeu d'évaluation (94 messages) et les 50 messages de développement : src/bilan_evaluation.py.
+# TP5.2 : 0,20 a été essayé (validation : score justes - 2 x faux 72,0 -> 75,0), mais le gain s'inverse sur
+# le jeu du TP5.1 (5 erreurs franches de plus) : il n'est pas robuste, 0,25 est gardé. Une marge entre les deux
+# premières catégories a aussi été essayée : aucun gain, non retenue.
 SEUIL_BASE = 0.25
 
 # Étiquettes du modèle -> étiquettes du contrat. Toute autre étiquette est refusée au démarrage.
@@ -49,6 +54,8 @@ CORRESPONDANCE: dict[str, Categorie] = {
     "facturation": "facturation", "logiciel": "logiciel", "panne_service": "panne_service",
 }
 PRIORITES: dict[str, Priorite] = {"high": "high", "medium": "medium", "low": "low"}
+# TP5.2 : la classe « pas un incident informatique » du modèle ; l'API répond INDETERMINE, source hors_sujet.
+HORS_SUJET = "hors_sujet"
 
 # Un groupe de techniciens par catégorie (fiche cas1) ; l'incident incertain va au tri.
 # Les noms sont en anglais : la page les montre à l'utilisateur (TP5).
@@ -98,30 +105,37 @@ class SupportClassifier:
         # Échoue immédiatement si le joblib ou la base manque : on ne démarre pas sans eux.
         modeles = charger_modele()
         # Échoue aussi si le modèle connaît des étiquettes que le contrat ignore.
-        verifier_etiquettes("categorie", modeles["categorie"].classes_, set(CORRESPONDANCE))
+        verifier_etiquettes("categorie", modeles["categorie"].classes_, {*CORRESPONDANCE, HORS_SUJET})
         verifier_etiquettes("priorite", modeles["priorite"].classes_, set(PRIORITES))
         self.articles = len(charger_base()[0])
 
     def predict(self, text: str) -> Prediction:
         """Renvoie la catégorie du contrat (ou INDETERMINE), la confiance, la priorité et un aperçu."""
-        r = _predict(text)
+        principal = partie_principale(text)  # TP5.2 : le vrai problème d'un message mêlé
+        r = _predict(principal)
         label: Label = "INDETERMINE"
         source: Source = "aucune"
-        vague = est_vague(text, vectoriseur_mots(charger_modele()["categorie"]))
+        vague = est_vague(principal, vectoriseur_mots(charger_modele()["categorie"]))
         if r["connus"] >= SEUIL_VOCABULAIRE and not vague:  # TP5.2 : un message trop vague n'est jamais tranché
-            if r["score"] >= SEUIL_ABSTENTION:
+            if r["label"] == HORS_SUJET and r["score"] >= SEUIL_ABSTENTION:
+                source = "hors_sujet"
+            elif r["score"] >= SEUIL_ABSTENTION:
                 label, source = CORRESPONDANCE[r["label"]], "modele"
             else:  # le modèle hésite : la base de connaissances donne un second avis
-                categorie, similarite = article_le_plus_proche(text)
+                categorie, similarite = article_le_plus_proche(principal)
                 if similarite >= SEUIL_BASE:
                     label, source = CORRESPONDANCE[categorie], "base"
-        return {"label": label, "score": r["score"], "priorite": PRIORITES[r["priorite"]], "connus": r["connus"],
+        if label in {"logiciel", "compte_acces", "reseau"} and impact_general(principal):
+            label = "panne_service"  # TP5.2 : un incident qui touche tout le monde est une panne
+        # TP5.2 : la priorité à part : indice du texte entier, sinon la catégorie, sinon le modèle appris
+        priorite, _raison = _priorite(text, None if label == "INDETERMINE" else label, PRIORITES[r["priorite"]])
+        return {"label": label, "score": r["score"], "priorite": PRIORITES[priorite], "connus": r["connus"],
                 "text": text[:100], "source": source}
 
     def assist(self, text: str) -> Assistance:
         """Classe l'incident, cherche un article, puis applique les règles d'escalade."""
         prediction = self.predict(text)
-        article = None if prediction["label"] == "INDETERMINE" else _chercher(text, prediction["label"])
+        article = None if prediction["label"] == "INDETERMINE" else _chercher(partie_principale(text), prediction["label"])
         decision, motif, raison = decider_tp51(prediction, article)
         return {**prediction, "decision": decision, "motif": motif, "raison": raison,
                 "groupe": GROUPES[prediction["label"]], "article": article}
@@ -211,6 +225,8 @@ def decider_tp51(prediction: Prediction, article: dict | None) -> tuple[Decision
     quand l'agent ne peut pas répondre seul (catégorie incertaine, aucun article) ou pour un cas
     critique. La priorité haute et les articles « always » ne suffisent plus : dans la conversation,
     l'agent propose d'abord les étapes. La priorité reste dans le ticket."""
+    if prediction.get("source") == "hors_sujet":
+        return "escalade", "hors_sujet", "message hors du support informatique : le tri N1 le réoriente"
     if prediction["label"] == "INDETERMINE":
         return decider(prediction, article)  # mots inconnus ou confiance basse : le tri N1, comme au TP4
     if prediction["label"] in CRITIQUES:

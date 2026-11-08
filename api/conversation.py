@@ -22,7 +22,7 @@ from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from typing import Any, Protocol, TypedDict
 
-from api.schemas import Action, Categorie, Code, Label, Phase, Priorite
+from api.schemas import Action, Categorie, Code, Label, Phase, Priorite, Source
 
 MAX_TENTATIVES = 2
 SEUIL_VOCABULAIRE = 0.50  # la même valeur que api/model.py (vérifié par un test) : sous ce seuil, « reformuler »
@@ -70,6 +70,7 @@ class Conversation(TypedDict):
     score: float
     priorite: Priorite
     connus: float
+    source: Source
     categorie: Categorie | None
     categorie_choisie: bool
     article: dict | None
@@ -126,7 +127,7 @@ def actions_possibles(conv: Conversation) -> list[Action]:
 
 
 def nouvelle(identifiant: str) -> Conversation:
-    return {"id": identifiant, "textes": [], "label": "INDETERMINE", "score": 0.0, "priorite": "low", "connus": 0.0,
+    return {"id": identifiant, "textes": [], "label": "INDETERMINE", "score": 0.0, "priorite": "low", "connus": 0.0, "source": "aucune",
             "categorie": None, "categorie_choisie": False, "article": None, "essais": [], "tentatives": 0,
             "precision_demandee": False, "critique_propose": False, "phase": "precision", "code": "choisir_categorie",
             "tours": [], "ticket_id": None}
@@ -136,6 +137,7 @@ def _classer(conv: Conversation, outils: Outils) -> None:
     """Le modèle relit tout le texte, sauf si l'utilisateur a choisi la catégorie lui-même."""
     p = outils.predict(texte_complet(conv))
     conv["label"], conv["score"], conv["priorite"], conv["connus"] = p["label"], p["score"], p["priorite"], p["connus"]
+    conv["source"] = p.get("source", "modele")
     if not conv["categorie_choisie"]:
         conv["categorie"] = None if p["label"] == "INDETERMINE" else p["label"]
 
@@ -167,7 +169,10 @@ def _repondre(conv: Conversation, outils: Outils) -> None:
     """Après un message ou un choix de catégorie : critique, hésitation, ou solution."""
     if conv["categorie"] is None:
         conv["article"], conv["precision_demandee"], conv["phase"] = None, True, "precision"
-        conv["code"] = "reformuler" if conv["connus"] < SEUIL_VOCABULAIRE else "choisir_categorie"
+        if conv.get("source") == "hors_sujet":
+            conv["code"] = "hors_sujet"
+        else:
+            conv["code"] = "reformuler" if conv["connus"] < SEUIL_VOCABULAIRE else "choisir_categorie"
         return
     if conv["categorie"] in CRITIQUES and not conv["critique_propose"]:
         # Les étapes de l'article s'affichent quand même : l'utilisateur agit en attendant le technicien.

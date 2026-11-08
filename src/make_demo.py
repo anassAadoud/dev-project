@@ -117,7 +117,27 @@ AUGMENTATION = True    # une copie de chaque incident, réécrite comme un utili
 APPLICATIONS = True    # des symptômes qui nomment les applications, dans plusieurs catégories
 APPS = ["Outlook", "Teams", "OneDrive", "SharePoint", "Excel", "Word", "PowerPoint", "Windows", "Chrome", "Acrobat",
         "Zoom"]
-# Une application ne désigne pas une catégorie : c'est ce qui lui arrive qui la désigne.
+# TP5.2 : des messages qui ne sont pas des incidents informatiques. Le modèle apprend à les reconnaître
+# (classe hors_sujet), au lieu de les laisser au seul garde-fou de vocabulaire. Sujets choisis à l'écart des
+# jeux de validation et d'évaluation.
+HORS_SUJET = "hors_sujet"
+NB_HORS_SUJET = 115
+MESSAGES_HORS_SUJET = [
+    "what is the best season to visit Marrakech", "how do I make mint tea", "recommend a good podcast",
+    "who painted the Mona Lisa", "what is on the cafeteria menu", "where do I submit my travel expenses",
+    "can I change my desk to the window side", "what is the dress code for the client visit", "is the gym open on Sunday",
+    "the plants in the lobby need water", "how long is the lunch break", "convert 10 euros to dirhams",
+    "explain photosynthesis to a child", "write a happy new year wish for my colleagues", "which movies are out this week",
+    "how do I tie a tie", "the window blinds in room 3 are stuck", "who is the manager of the sales team",
+    "when are salaries paid this month", "how many vacation days do I have left", "can you summarise this book for me",
+    "what is the population of Egypt", "give me a recipe for couscous", "the water fountain is leaking",
+    "I want to sign up for the football tournament", "what are the office opening hours during Ramadan",
+    "is there a bus from the train station to the office", "how do I say thank you in Japanese",
+    "my neighbour's dog barks all night", "suggest a gift for my sister", "what is the speed of light",
+    "the canteen is too noisy", "who won the world cup in 2010", "how do I train for a marathon",
+    "can I bring a guest to the end of year dinner", "the parking barrier is closed", "what does the HR policy say about overtime",
+    "tell me a riddle", "how far is the moon", "write a birthday card for my boss",
+]
 MOTIFS_APPS = {
     "logiciel": ["{app} crashes when I open it", "{app} freezes and stops responding", "{app} will not start",
                  "{app} shows an error message", "{app} is very slow", "{app} stopped syncing my files",
@@ -235,17 +255,28 @@ def incidents(categorie: str, rng: random.Random, symptomes: dict[str, list[str]
     return lignes
 
 
+def hors_sujet(rng: random.Random) -> list[tuple[str, str, str, str]]:
+    """Les messages hors sujet : formule de début au hasard, sans urgence (priorité low, sans objet)."""
+    lignes = []
+    for i in range(NB_HORS_SUJET):
+        indice = i % len(MESSAGES_HORS_SUJET)
+        texte = f"{rng.choice(DEBUTS)}{MESSAGES_HORS_SUJET[indice]}{rng.choice(['?', '.', ''])}"
+        lignes.append((texte[0].upper() + texte[1:], HORS_SUJET, "low", f"{HORS_SUJET}:{indice}"))
+    return lignes
+
+
 def generer(graine: int = GRAINE) -> list[tuple[str, str, str, str]]:
     """Le jeu complet pour une graine, mélangé (TP5.2 : l'évaluation sur plusieurs graines le réutilise)."""
     rng = random.Random(graine)
     symptomes = tous_les_symptomes()
     lignes = [ligne for categorie in CATEGORIES for ligne in incidents(categorie, rng, symptomes)]
+    lignes += hors_sujet(rng)
     if AUGMENTATION:  # la copie réécrite garde le groupe : elle reste du même côté du découpage
         copies = []
         for t, c, p, g in lignes:
             texte, coupe = reecrire(t, rng)
             # sans sa formule d'urgence ou de calme, la copie prend la priorité de sa catégorie (même règle)
-            copies.append((texte, c, priorite_du_ton("neutre", c) if coupe else p, g))
+            copies.append((texte, c, p if c == HORS_SUJET or not coupe else priorite_du_ton("neutre", c), g))
         lignes += copies
     rng.shuffle(lignes)
     return lignes
@@ -261,7 +292,7 @@ def main() -> int:
     par_categorie = Counter(ligne[1] for ligne in lignes)
     par_priorite = Counter(ligne[2] for ligne in lignes)
     print(f"{len(lignes)} incidents écrits dans {SORTIE.relative_to(RACINE).as_posix()}")
-    print("  par catégorie : " + ", ".join(f"{c} {par_categorie[c]}" for c in CATEGORIES))
+    print("  par catégorie : " + ", ".join(f"{c} {par_categorie[c]}" for c in [*CATEGORIES, HORS_SUJET]))
     print("  par priorité  : " + ", ".join(f"{p} {par_priorite[p]}" for p in ["high", "medium", "low"]))
     print(f"  dont {MELES * len(CATEGORIES)} incidents mêlés, volontairement difficiles ; "
           f"{len({ligne[3] for ligne in lignes})} symptômes d'origine (colonne groupe)")

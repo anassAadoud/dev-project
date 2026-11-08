@@ -28,6 +28,7 @@ VERDICTS = {
 }
 # Le motif de la décision de /assist (règles de la fiche cas1), traduit pour l'utilisateur.
 MOTIFS = {
+    "hors_sujet": "This message is not about an IT problem: the support team will redirect it.",
     "mots_inconnus": "Most words of your message are unknown to the agent (it only understands English): "
                      "a technician will take over.",
     "confiance_basse": "The agent is not sure which kind of incident this is: a technician will take over.",
@@ -46,6 +47,10 @@ REPLIQUES = {
     "question_precision": "I need a bit more detail to find the right solution. What exactly happens: which device "
                           "or application, and is there an error message? You can also pick the kind of problem below.",
     "choisir_categorie": "I'm not sure which kind of problem this is. Pick it below, or describe it in a bit more detail.",
+    "hors_sujet": "I can only help with IT problems (computer, network, account, software, billing). "
+                  "If your message is about an IT problem, describe it in a few words or pick the kind of problem below.",
+    "confirmer_categorie": "I think this is about the category below, but I'm not completely sure. Is that right? "
+                           "Pick it to see the solution, or choose another one.",
     "reformuler": "I don't understand most of these words (I only understand English). Describe the problem again "
                   "in English, or pick the kind of problem below.",
     "critique": "This looks critical. Do the steps below right away. I suggest sending it to a technician now: "
@@ -58,7 +63,8 @@ REPLIQUES = {
     "ticket_refuse": "OK, no ticket for now. Tell me more, or try the steps again.",
 }
 # Qui a choisi la catégorie (TP5.1) : le modèle, ou la base de connaissances quand le modèle hésite.
-SOURCES = {"modele": "model", "base": "knowledge base", "aucune": "nobody (sent to triage)"}
+SOURCES = {"modele": "model", "base": "knowledge base", "aucune": "nobody (sent to triage)",
+           "hors_sujet": "model (not an IT problem)"}
 # Les statuts d'un ticket, tels que l'utilisateur les lit.
 STATUTS = {"ouvert": "Open", "en_cours": "In progress", "resolu": "Resolved", "ferme": "Closed"}
 INJOIGNABLE = "API unreachable: start uvicorn api.main:app first."

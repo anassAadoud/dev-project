@@ -11,17 +11,18 @@ Priorite = Literal["high", "medium", "low"]
 Decision = Literal["solution", "escalade"]
 # TP5 : le motif de la décision, un code que l'interface traduit pour l'utilisateur.
 Motif = Literal["mots_inconnus", "confiance_basse", "priorite_haute", "sans_article", "article_escalade", "solution",
-                "critique"]
+                "critique", "hors_sujet"]
 # TP5.1 : la conversation. L'action de l'utilisateur, la phase où en est l'agent, et le code de sa
 # réponse, que l'interface traduit en anglais (comme le motif du TP5).
 Action = Literal["message", "resolu", "pas_resolu", "categorie", "demander_ticket", "confirmer_ticket",
                  "refuser_ticket"]
 Phase = Literal["solution", "precision", "proposition_ticket", "resolu", "ticket"]
 Code = Literal["solution", "autre_solution", "question_precision", "choisir_categorie", "reformuler", "critique",
-               "deux_essais", "demande", "resolu", "ticket_cree", "ticket_refuse"]
+               "deux_essais", "demande", "resolu", "ticket_cree", "ticket_refuse", "hors_sujet", "confirmer_categorie"]
 Statut = Literal["ouvert", "en_cours", "resolu", "ferme"]
 # TP5.1 : qui a choisi la catégorie : le modèle, la base de connaissances (second avis), ou personne.
-Source = Literal["modele", "base", "aucune"]
+# TP5.2 : hors_sujet, le modèle reconnaît un message qui n'est pas un incident informatique.
+Source = Literal["modele", "base", "aucune", "hors_sujet"]
 
 EXEMPLE = "My VPN keeps disconnecting every 10 minutes when I work from home"
 
@@ -51,7 +52,7 @@ class PredictResponse(BaseModel):
     connus: float = Field(..., ge=0, le=1, description="Part des mots du texte connus du modèle")
     text: str = Field(..., description="Aperçu du texte analysé (100 caractères)")
     source: Source = Field("modele", description="Qui a choisi la catégorie : le modèle, la base (second avis), "
-                                                 "ou personne (INDETERMINE)")
+                                                 "personne (INDETERMINE), ou hors_sujet (pas un incident informatique)")
 
 
 class Article(BaseModel):

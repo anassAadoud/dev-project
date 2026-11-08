@@ -1,0 +1,37 @@
+text,attendu,type
+"The printer was fixed yesterday, but my account is locked since this morning",compte_acces,melange
+"Wi-Fi is fine now, however Outlook keeps crashing when I open it",logiciel,melange
+"I thought it was the network, actually the laptop battery is swollen",materiel,melange
+"Excel works again, now the VPN drops every ten minutes",reseau,melange
+"Not a hardware problem, the issue is that I was charged twice for the licence",facturation,melange
+"My password works, the problem is the shared mailbox says access denied",compte_acces,melange
+"The screen was flickering, turns out it was a phishing pop-up asking for my login",securite,melange
+"Teams is OK on my side, what's really broken is the company website, down for all customers",panne_service,melange
+"I restarted the router, but the real cause is the ethernet port at my desk that is dead",reseau,melange
+"Forget the keyboard, the main issue is that OneDrive stopped syncing",logiciel,melange
+"The invoice was corrected, however the scanner gives blank pages again",materiel,melange
+"I changed my password last week, actually the problem is a login from another country on my account",securite,melange
+"The monitor is fine, the issue is the ERP that is unavailable for everyone",panne_service,melange
+"VPN connects now, but Word closes every time I save",logiciel,melange
+"Outlook was slow this morning, now nobody in the office can send emails",panne_service,melange
+"It is not the Wi-Fi, the issue is my mouse that keeps disconnecting",materiel,melange
+"The antivirus is updated, but the payment for our renewal was declined",facturation,melange
+"Sorry, my mistake about the printer, the real issue is that my MFA codes are rejected",compte_acces,melange
+"Teams sound works again, however I clicked a link in a fake invoice email",securite,melange
+"The account was unlocked, but now the docking station does not detect my monitors",materiel,melange
+"Excel froze earlier, the actual problem is the internet that is very slow on the second floor",reseau,melange
+"The laptop is fine, turns out the billing portal shows our invoice as unpaid although we paid",facturation,melange
+"The VPN connects but I can't open the shared drive",reseau,piege
+"Outlook crashes but only when I open the calendar",logiciel,piege
+"I changed my password but now my account is locked",compte_acces,piege
+"The printer is on but it shows offline",materiel,piege
+"We paid the invoice but we still received a reminder",facturation,piege
+"My antivirus is up to date but it found a trojan anyway",securite,piege
+"The website loads but it shows error 500 for every customer",panne_service,piege
+"Teams opens but now it freezes after two minutes",logiciel,piege
+"I can connect to the Wi-Fi however there is no internet",reseau,piege
+"Actually the scanner jams on every page",materiel,piege
+"Now the laptop battery lasts only twenty minutes",materiel,piege
+"The issue is that my account is disabled after my leave",compte_acces,piege
+"The problem is our card payment was refused for the subscription",facturation,piege
+"I reinstalled Excel but it still crashes when I open big files",logiciel,piege

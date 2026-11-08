@@ -55,3 +55,4 @@ htmlcov/
 # TP5.2 : jeu de validation (réglages) et jeu indépendant (mesure finale seulement)
 !data/jeu_validation.csv
 !data/jeu_independant.csv
+!data/jeu_melanges.csv

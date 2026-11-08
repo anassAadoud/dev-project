@@ -39,7 +39,7 @@ def test_metriques_completes():
     for cle in ["source", "f1_macro", "accuracy", "rappel_par_classe", "priorite_f1_macro", "n_train", "n_test"]:
         assert cle in metriques, f"clé absente de metrics.json : {cle}"
     assert metriques["n_test"] > 0
-    assert set(metriques["classes"]) == CATEGORIES
+    assert set(metriques["classes"]) - {"hors_sujet"} == CATEGORIES  # TP5.2 : classe hors sujet en plus
 
 
 def test_f1_au_dessus_du_seuil():
@@ -57,7 +57,7 @@ def test_format_de_sortie(predicteur):
     sortie = predicteur("The printer shows offline and nothing prints")
     # inclusion et non égalité : predict() peut renvoyer des champs supplémentaires
     assert {"label", "score", "priorite"} <= set(sortie)
-    assert sortie["label"] in CATEGORIES
+    assert sortie["label"] in CATEGORIES | {"hors_sujet"}
     assert sortie["priorite"] in {"high", "medium", "low"}
     assert 0.0 <= sortie["score"] <= 1.0
     with pytest.raises(ValueError):

@@ -25,6 +25,8 @@ Ce journal est adapté de celui de `sentiment-app` : même structure (préparati
 
 **TP5.1 : améliorer l'agent (entre le TP5 et le TP6).** Diagnostic des tickets sur 30 conversations (`src/bilan_tickets.py`), puis une politique de conversation testée (`api/conversation.py`, `POST /chat`) : jamais de ticket au premier message, une autre solution ou une question de précision, le ticket après deux tentatives, sur demande ou pour un cas critique, toujours confirmé, un seul par conversation. Base de 42 articles, page en conversation, suivi des tickets, avis sur les réponses, statistiques, ticket passé le plus proche, Ollama en option. `docs/semaine5.1.md`.
 
+**TP5.2 : un agent qui comprend mieux les vrais messages.** Évaluation honnête (jeu de validation pour régler, jeu indépendant pour la mesure finale, découpage par symptôme), modèle mots + caractères, messages réécrits et noms d'applications, classe hors sujet, priorité décidée à part, règle des messages mêlés, recherche dans toute la base, questions de diagnostic, essai de l'hybride MiniLM, page et API plus fiables. `docs/semaine5.2.md`.
+
 **TP6 : packager l'application.** Le paquet `support_it` reçoit `predict.py` par `git mv`, et un fichier de compatibilité reste dans `src/`. L'API importe le paquet sans toucher `sys.path`. La commande `support` (`--version`, `predict`, `assist`, `serve`, `ui`) est ajoutée, ainsi que la variable `SUPPORT_MODELE`. `pyproject.toml` épingle scikit-learn ; la roue est construite puis installée hors du dépôt. Le TP se termine par `tests/test_packaging.py`, `CHANGELOG.md`, les étiquettes `tp6` et `v0.6.0`, et `docs/semaine6.md`.
 
 **À chaque fin de TP** : contrôles du guide avec les chiffres réellement obtenus, documentation, commit, étiquette `tpN`, mise à jour du graphe (`graphify-out/`, hors Git), copie `Agent_support_info_TPn`, comparaison de l'empreinte de `sentiment-app/`.
@@ -1118,3 +1120,27 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 **Priorité et décision du fichier** (T5.1-f) : graphe refait, 856 nœuds, 1 655 arêtes, 43 groupes ; empreinte de `sentiment-app/` : 58 813 fichiers, aucune différence ; étiquette `tp5.1` déplacée sur le dernier commit et copie refaite (`robocopy /MIR`).
 
 **TP6** : pas encore fait. Il partira de cette version.
+
+---
+
+## TP5.2 : un agent qui comprend mieux les vrais messages
+
+**Date** : 8 novembre 2026 · **Fait par** : membre A (avec Claude Code)
+
+**Ce qui a été fait, phase par phase** (le détail et les chiffres sont dans `docs/semaine5.2.md`) :
+
+- **Phase 1, la mesure** : `data/jeu_validation.csv` (120, seul jeu de réglage), `data/jeu_independant.csv` (126, mesure finale), `src/evaluer.py`, colonne `groupe` et F1 par symptôme, copie locale de Tobi-Bueck. Mesure de départ : validation 55,2 %, F1 macro 0,676 ; indépendant 52,7 %, 0,658 ; F1 par symptôme 0,631.
+- **Phase 2, le modèle** : mots + caractères, copies réécrites, applications, `--mixte` et `--origine` ; validation (3 graines) 0,511 → 0,635.
+- **Phase 3, la décision** : classe hors sujet, panne générale, messages mêlés, priorité à part ; validation 0,663, F1 macro 0,776, priorité 0,870.
+
+**Décisions et raisons.**
+
+- **Un seul jeu de réglage** : chaque option est comparée sur la validation, sur 3 graines du jeu de démonstration. Les jeux du TP4 et du TP5.1, déjà vus, servent de veto : le seuil de la base à 0,20 gagnait 3 points en validation mais faisait 5 erreurs de plus sur le jeu du TP5.1, il n'a pas été gardé.
+- **La priorité suit une règle écrite**, et non un modèle appris sur des phrases synthétiques : 86 % contre 76 %.
+- **Le mode `--mixte` reste une option** : il double les erreurs franches sur les messages courts.
+
+**Problèmes rencontrés.**
+
+- Le contrôle des fuites a trouvé trois messages communs entre les nouveaux jeux et le matériel existant (« tell me a joke », deux symptômes) : reformulés avant la première mesure.
+- Une copie réécrite coupée perdait sa formule d'urgence mais gardait sa priorité : la priorité était tombée à 64 %. Corrigé (la copie prend la priorité de sa catégorie).
+- « It does not work » était de nouveau classé : règle des messages trop vagues.

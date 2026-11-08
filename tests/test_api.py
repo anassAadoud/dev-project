@@ -92,6 +92,15 @@ def test_hors_sujet_va_au_tri(client, texte):
     assert client.post("/predict", json={"text": texte}).json()["label"] == "INDETERMINE"
 
 
+@pytest.mark.parametrize("texte", ["what is the best season to visit Marrakech", "how do I make mint tea"])
+def test_hors_sujet_reconnu_par_le_modele(client, texte):
+    """TP5.2 : la classe hors sujet du modèle ; la réponse est INDETERMINE, source hors_sujet."""
+    body = client.post("/predict", json={"text": texte}).json()
+    assert (body["label"], body["source"]) == ("INDETERMINE", "hors_sujet")
+    assist = client.post("/assist", json={"text": texte}).json()
+    assert (assist["decision"], assist["motif"], assist["groupe"]) == ("escalade", "hors_sujet", "Triage (L1)")
+
+
 def test_source_du_modele(client):
     body = client.post("/predict", json={"text": "My VPN keeps disconnecting and the network is unstable"}).json()
     assert body["source"] == "modele"

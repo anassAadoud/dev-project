@@ -138,6 +138,15 @@ def test_la_categorie_choisie_reste_celle_de_l_utilisateur(outils):
     assert conv["categorie"] == "materiel"
 
 
+def test_hors_sujet_explique_et_propose_les_boutons(outils, monkeypatch):
+    """TP5.2 : un message hors sujet ; l'agent le dit, sans ticket, et laisse choisir une catégorie."""
+    monkeypatch.setattr(outils, "predict", lambda t: {"label": "INDETERMINE", "score": 0.9, "priorite": "low",
+                                                      "connus": 0.9, "source": "hors_sujet"})
+    conv = debut(outils, "how do I make mint tea")
+    assert (conv["phase"], conv["code"]) == ("precision", "hors_sujet") and outils.tickets == []
+    assert "categorie" in cv.actions_possibles(conv)
+
+
 def test_mots_inconnus_reformuler(outils):
     conv = debut(outils, "xqz wlk grb")
     assert (conv["phase"], conv["code"]) == ("precision", "reformuler")
