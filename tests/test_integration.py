@@ -104,7 +104,7 @@ def test_ticket_d_un_incident_indetermine_va_au_tri(client):
     """Un ticket créé pour un incident incertain part au groupe de tri N1."""
     reponse = client.post("/tickets", json={"text": "xqzvb wlkptr grombu"})
     assert reponse.status_code == 201
-    assert reponse.json()["label"] == "INDETERMINE" and reponse.json()["groupe"] == "Tri N1"
+    assert reponse.json()["label"] == "INDETERMINE" and reponse.json()["groupe"] == "Triage (L1)"
 
 
 def test_lire_un_ticket_sans_fichier_repond_404(client):

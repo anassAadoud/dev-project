@@ -54,7 +54,7 @@ def test_solution_pas_a_pas_puis_resolu(page):
 def test_non_resolu_cree_un_ticket(page):
     page = aider(page, "The printer on the second floor shows offline and nothing prints, no rush")
     page.radio(key="resolu").set_value("No").run()
-    assert "Ticket TCK-" in page.success[0].value and "Poste de travail" in page.success[0].value
+    assert "Ticket TCK-" in page.success[0].value and "Workstation" in page.success[0].value
 
 
 def test_texte_inconnu_je_ne_sais_pas_puis_ticket(page):
@@ -62,7 +62,7 @@ def test_texte_inconnu_je_ne_sais_pas_puis_ticket(page):
     assert page.metric[0].label.startswith("I don't know")
     assert page.warning[0].value == client.MOTIFS["mots_inconnus"]
     page.button(key="creer").click().run()
-    assert "Tri N1" in page.success[0].value
+    assert "Triage (L1)" in page.success[0].value
 
 
 def test_espaces_avertissement(page):

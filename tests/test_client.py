@@ -41,7 +41,7 @@ def test_assistance_propose_les_etapes(session):
 
 def test_texte_inconnu_part_au_tri(session):
     r = client.assister(session, "xqzvb wlkptr grombu")
-    assert r.ok and r.label == "INDETERMINE" and r.decision == "escalade" and r.groupe == "Tri N1"
+    assert r.ok and r.label == "INDETERMINE" and r.decision == "escalade" and r.groupe == "Triage (L1)"
     assert client.VERDICTS[r.label].startswith("I don't know")
 
 

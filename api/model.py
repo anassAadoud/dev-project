@@ -33,15 +33,16 @@ CORRESPONDANCE: dict[str, Categorie] = {
 PRIORITES: dict[str, Priorite] = {"high": "high", "medium": "medium", "low": "low"}
 
 # Un groupe de techniciens par catégorie (fiche cas1) ; l'incident incertain va au tri.
+# Les noms sont en anglais : la page les montre à l'utilisateur (TP5).
 GROUPES: dict[Label, str] = {
-    "securite": "Sécurité (SOC)",
-    "reseau": "Réseau",
-    "materiel": "Poste de travail",
-    "compte_acces": "Identités et accès",
-    "facturation": "Facturation",
+    "securite": "Security (SOC)",
+    "reseau": "Network",
+    "materiel": "Workstation",
+    "compte_acces": "Identity and access",
+    "facturation": "Billing",
     "logiciel": "Applications",
-    "panne_service": "Exploitation (N2)",
-    "INDETERMINE": "Tri N1",
+    "panne_service": "Operations (L2)",
+    "INDETERMINE": "Triage (L1)",
 }
 
 
