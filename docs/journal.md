@@ -42,6 +42,7 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP1 | Cloner, ajouter sa ligne au tableau du binôme dans `README.md`, commiter et pousser (contrôles T4, T5) | Membre B |
 | TP1 | Vérifier l'onglet Actions (CI verte) et refaire le clone frais T7 depuis GitHub | Les deux |
 | TP2 | `git pull`, `python src/make_demo.py`, `python src/train.py`, `python -m pytest -q` ; vérifier la CI après le push | Membre B |
+| TP3 | Vérifier la CI (T19) ; membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, essais T15 à T18 | Les deux |
 | Tous | Captures d'écran dans `docs/captures/` si l'enseignant les exige | Les deux |
 
 ## Écarts au guide et à la méthode
@@ -57,6 +58,8 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP2 | `tests/test_model.py` applique un seuil de F1 par source : 0,85 (cours) sur la démonstration, 0,75 sur Tobi-Bueck | Seuil d'acceptation fixé au TP1 dans la fiche `cas2` (référence du notebook 0,788) ; le seuil du cours reste affiché et comparé par `train.py` |
 | TP2 | Pas de filtre sur les queues rares du notebook : 8 452 incidents au lieu de 8 266 | Filtre absent de la liste des filtres retenus pour le projet |
 | TP2 | Jeu de démonstration de 350 incidents en 7 catégories (au lieu de 290 avis en 2 classes) | Mêmes 7 catégories que le jeu réel ; 10 incidents mêlés par catégorie jouent le rôle des avis mitigés |
+| TP3 | Routes en plus de `/health` et `/predict` : `/assist`, `/tickets`, `/tickets/{id}` ; 10 tests d'API au lieu de 6 | Fonctionnalités du sujet 9 (solution, ticket, escalade) |
+| TP3 | La réponse du ticket passé le plus proche (`answer` de Tobi-Bueck) n'est pas exposée | L'API de la CI tourne sans réseau sur le modèle de démonstration ; facultatif dans le cadrage |
 
 ---
 
@@ -560,3 +563,113 @@ FAILED tests/test_git_history.py::test_each_member_has_committed
 **Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
 
 **Étiquette** `tp2` sur le dernier commit du TP2, puis copie `Agent_support_info_TP2`. Les fichiers du TP3 commencés avant la copie (`api/`, `src/kb.py`, `data/base_connaissances.csv`, non commités) sont exclus de la copie, pour qu'elle ne contienne que le TP2.
+
+---
+
+## TP3 : exposer le modèle par une API
+
+**Date** : 8 novembre 2026 · **Fait par** : membre A (avec Claude Code)
+
+**Ce qui a été fait.** La base de connaissances `data/base_connaissances.csv` est rédigée en anglais : 21 articles, 3 par catégorie (`id`, `categorie`, `titre`, `symptomes`, `etapes` séparées par `|`, `escalade_si`), versionnée par une exception dans `.gitignore`. `src/kb.py` y cherche l'article le plus proche (TF-IDF, similarité cosinus, seuil 0,10). L'API reprend la structure de `sentiment-app/api/` : `schemas.py` pour le contrat, `model.py` pour le raccord et les règles d'escalade, `main.py` pour le lifespan et les routes, plus `tickets.py` pour le stockage JSON Lines. S'y ajoutent `tests/test_api.py` (10 tests), `pythonpath = .` dans `pytest.ini` et une CI qui installe l'API puis entraîne le modèle de démonstration avant les tests.
+
+**Décisions et raisons.**
+
+- **`/assist` renvoie la décision et sa raison** (`decision`, `raison`, `groupe`), en plus du classement et de l'article : la page du TP5 n'aura rien à décider, elle affichera ce que l'API a tranché (règle d'architecture : la page ne connaît pas le modèle).
+- **Les règles d'escalade dans `api/model.py`** (`decider`), dans l'ordre de la fiche `cas1` : priorité haute, aucun article, article qui demande toujours un technicien, sinon solution. L'escalade pour `INDETERMINE` (groupe de tri N1) viendra avec l'abstention, au TP4.
+- **`POST /tickets` pré-remplit le ticket** : si la page ne transmet pas la catégorie ou la priorité, l'API les calcule ; le groupe vient toujours de la catégorie. Tickets dans `tickets/tickets.jsonl` (hors Git), chemin dans `SUPPORT_TICKETS` pour que les tests n'écrivent jamais dans le dépôt.
+- **La base est chargée au démarrage, comme le modèle** : sans base, l'API refuse de démarrer (même raisonnement que T20).
+
+### T14 · Le point de départ
+
+```powershell
+python src/train.py          # retour au modèle de démonstration : le TP2 s'est terminé sur Tobi-Bueck
+python -m pytest -q
+```
+
+&nbsp;
+
+**Attendu** (cours) : `48 passed` (42 du TP2 + 6 de l'API). **Chez nous** : les 42 du TP2 plus nos 10 tests d'API.
+
+**Obtenu** :
+
+```
+F1 macro sur le jeu de test : 0.856 (seuil du cours 0.85 : atteint ; acceptation pour « demo » : 0.85)
+FAILED tests/test_git_history.py::test_each_member_has_committed
+1 failed, 51 passed, 1 warning in 5.14s
+```
+
+- [x] Conforme, à l'échec d'auteur du TP1 près
+
+**Commentaire** :
+
+> Les 10 tests de l'API passent : les 6 parallèles au cours (`/`, `/health`, deux classements, deux familles de 422), plus `/assist` (solution, escalade) et `/tickets` (201 puis relecture, 404). L'avertissement est un `DeprecationWarning` d'anyio, sans conséquence (guide, p. 82).
+
+### T15 à T18 · L'API en marche
+
+```powershell
+uvicorn api.main:app --port 8000
+python -c "import httpx; ..."      # mêmes requêtes que dans /docs
+```
+
+&nbsp;
+
+**Attendu** : T15 `/health` 200 et le nom du modèle ; T16 et T17 deux incidents évidents bien classés ; T18 422 pour `""`, `{}`, `42`.
+
+**Obtenu** :
+
+```
+Modèle chargé avec succès : tfidf-linearsvc (TP2, models/support.joblib) ; 21 articles
+T15 {'status': 'OK', 'model': 'tfidf-linearsvc (TP2, models/support.joblib)', 'articles': 21}
+T16 200 {'label': 'reseau', 'score': 0.9133, 'priorite': 'medium', 'text': 'My VPN keeps disconnecting every 10 minutes when I work from home'}
+T17 200 {'label': 'facturation', 'score': 0.8348, 'priorite': 'high', 'text': 'I was charged twice for my subscription this month'}
+    200 {'label': 'materiel', 'score': 0.9109, 'priorite': 'low', 'text': 'The printer on the second floor shows offline and nothing prints'}
+T18 [422, 422, 422]
+espaces 422 {'detail': 'texte vide'}
+assist materiel solution Poste de travail  -> KB-HW-01
+assist panne_service high escalade Exploitation (N2) : priorité haute
+ticket 201 {'id': 'TCK-908772C3', ..., 'label': 'logiciel', 'priorite': 'low', 'groupe': 'Applications', ...}
+relu 200 ; inconnu 404
+```
+
+- [x] Conforme
+
+**Commentaire** :
+
+> Les trois premiers incidents des 12 du notebook sont bien classés par le modèle de démonstration, avec une confiance au-dessus de 0,9 pour deux d'entre eux. Le texte fait d'espaces reçoit bien un 422, mais avec un `detail` en chaîne simple, pas en liste : c'est le défaut annoncé par le guide, à corriger au TP4. La priorité `high` sur « charged twice » montre que le modèle de priorité de la démonstration ne généralise pas (voir `docs/semaine3.md`).
+
+### T19 · La CI
+
+**Attendu** : l'étape « Modèle de démonstration » passe, puis les tests.
+
+**Obtenu** : non vérifiable, le dépôt n'est pas encore sur GitHub. `ci.yml` installe `fastapi`, `httpx` et `uvicorn`, puis lance `python src/make_demo.py && python src/train.py` avant `pytest -q`.
+
+- [ ] Conforme : **à vérifier après le push** (« À faire par l'humain »)
+
+### T20 · L'API sans modèle
+
+```powershell
+Rename-Item models\support.joblib support.bak
+uvicorn api.main:app --port 8001
+Rename-Item models\support.bak support.joblib
+```
+
+&nbsp;
+
+**Attendu** : `FileNotFoundError`, puis `Application startup failed`.
+
+**Obtenu** :
+
+```
+FileNotFoundError: models/support.joblib absent : lancez python src/train.py
+ERROR:    Application startup failed. Exiting.
+```
+
+- [x] Conforme
+
+**Commentaire** :
+
+> L'API refuse de démarrer plutôt que de répondre 503 à chaque requête : voir la question 1 de `docs/semaine3.md`. Le modèle a été remis en place aussitôt.
+
+### Membre B, après le TP3
+
+À faire par le membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, puis les essais T15 à T18.

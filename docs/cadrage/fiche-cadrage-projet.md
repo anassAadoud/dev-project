@@ -168,3 +168,4 @@ Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST
 | --- | --- | --- |
 | 2026-11-08 | TP1 | Cadrage du projet ajouté sous la version initiale ; trois fiches `cas*.md` |
 | 2026-11-08 | TP2 | Données réelles : 8 452 incidents étiquetés (pas de filtre sur les queues rares) ; F1 macro mesuré 0,789 sur Tobi-Bueck, 0,856 sur la démonstration ; priorité : F1 0,661, rappel `high` 0,717 |
+| 2026-11-08 | TP3 | Base de connaissances écrite : 21 articles (3 par catégorie) ; seuil de similarité 0,10 ; routes `/assist` et `/tickets` en place ; la réponse du ticket passé n'est pas exposée |
