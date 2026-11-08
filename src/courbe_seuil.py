@@ -19,7 +19,7 @@ from pathlib import Path
 import joblib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from predict import part_connue  # noqa: E402  (la règle du garde-fou, celle de l'API)
+from predict import part_connue, vectoriseur_mots  # noqa: E402  (la règle du garde-fou, celle de l'API)
 from train import METRIQUES, MODELE, charger, decouper  # noqa: E402  (même découpage que train.py)
 
 SEUILS = [round(0.30 + 0.05 * i, 2) for i in range(14)]  # de 0,30 à 0,95 : 7 classes, des confiances plus basses
@@ -46,7 +46,7 @@ def main() -> int:
     probas = pipeline.predict_proba(test["text"])
     confiance = probas.max(axis=1)
     justes = pipeline.classes_[probas.argmax(axis=1)] == test["categorie"].to_numpy()
-    vectoriseur = pipeline.named_steps["tfidf"]
+    vectoriseur = vectoriseur_mots(pipeline)
     inconnus = sum(part_connue(t, vectoriseur) < SEUIL_VOCABULAIRE for t in test["text"])
     n = len(test)
 

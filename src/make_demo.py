@@ -111,6 +111,70 @@ FAIBLE = ["no rush, it is just annoying", "only sometimes, not blocking", "when 
 NEUTRE = ["", "", "it happens every day", "please have a look today", "it slows down my work", "since this morning",
           "since yesterday", "after the update"]
 PRIORITE_SANS_INDICE = {"securite": "high", "panne_service": "high"}  # les autres catégories : medium
+
+# --- TP5.2 : des messages plus proches de ceux des utilisateurs (choix mesurés, voir docs/semaine5.2.md) ---
+AUGMENTATION = True    # une copie de chaque incident, réécrite comme un utilisateur pressé (même étiquette)
+APPLICATIONS = True    # des symptômes qui nomment les applications, dans plusieurs catégories
+APPS = ["Outlook", "Teams", "OneDrive", "SharePoint", "Excel", "Word", "PowerPoint", "Windows", "Chrome", "Acrobat",
+        "Zoom"]
+# Une application ne désigne pas une catégorie : c'est ce qui lui arrive qui la désigne.
+MOTIFS_APPS = {
+    "logiciel": ["{app} crashes when I open it", "{app} freezes and stops responding", "{app} will not start",
+                 "{app} shows an error message", "{app} is very slow", "{app} stopped syncing my files",
+                 "the {app} update failed", "{app} closes without warning"],
+    "compte_acces": ["{app} says access denied", "I cannot sign in to {app}", "{app} keeps asking me to log in again",
+                     "I need access to a {app} folder of my team", "{app} says I do not have permission"],
+    "panne_service": ["{app} is down for everyone", "{app} is unavailable for the whole company",
+                      "nobody can use {app} today"],
+    "reseau": ["{app} cannot reach the server", "{app} is slow only on the VPN", "{app} says I am offline"],
+    "securite": ["a fake {app} login page asked for my password", "a suspicious {app} message contained a strange link"],
+    "materiel": ["my headset does not work in {app}", "the camera is not detected in {app}"],
+    "facturation": ["we are billed for {app} licences we do not use", "the {app} subscription was charged twice"],
+}
+# Abréviations courantes du support (anglais) : le mot complet, puis ce qu'écrit l'utilisateur.
+ABREVIATIONS = [("password", "pwd"), ("please", "pls"), ("computer", "pc"), ("cannot", "cant"), ("can't", "cant"),
+                ("do not", "dont"), ("does not", "doesnt"), ("will not", "wont"), ("is not", "isnt"),
+                ("application", "app"), ("message", "msg"), ("information", "info"), ("as soon as possible", "asap"),
+                ("you", "u"), ("thanks", "thx"), ("connection", "connexion"), ("two-factor", "2fa"),
+                ("authentication", "auth"), ("administrator", "admin")]
+
+
+def faute_de_frappe(mot: str, rng: random.Random) -> str:
+    """Une lettre sautée, doublée ou échangée, au milieu du mot (jamais la première)."""
+    if len(mot) < 5 or not mot.isalpha():
+        return mot
+    i = rng.randrange(1, len(mot) - 2)
+    return rng.choice([mot[:i] + mot[i + 1:], mot[:i] + mot[i] + mot[i:], mot[:i] + mot[i + 1] + mot[i] + mot[i + 2:]])
+
+
+def reecrire(texte: str, rng: random.Random) -> tuple[str, bool]:
+    """Le même incident écrit vite : minuscules, abréviations, une ou deux fautes, sans formule ni point.
+    Renvoie aussi si le message a été coupé : la formule d'urgence ou de calme a alors disparu."""
+    t = texte.lower().rstrip(".!")
+    for debut in DEBUTS:
+        if debut and t.startswith(debut.lower()):
+            t = t[len(debut):]
+    for complet, court in ABREVIATIONS:
+        if complet in t and rng.random() < 0.6:
+            t = t.replace(complet, court)
+    coupe = rng.random() < 0.4 and ", " in t
+    if coupe:  # message incomplet : la première partie seulement
+        t = t.split(", ")[0]
+    mots = t.split()
+    for _ in range(rng.choice([1, 1, 2])):
+        k = rng.randrange(len(mots))
+        mots[k] = faute_de_frappe(mots[k], rng)
+    return " ".join(mots), coupe
+
+
+def symptomes_applications() -> dict[str, list[str]]:
+    """Chaque motif avec trois applications, toujours les mêmes (déterministe)."""
+    sortie: dict[str, list[str]] = {c: [] for c in CATEGORIES}
+    for categorie, motifs in MOTIFS_APPS.items():
+        for n, motif in enumerate(motifs):
+            for k in range(3):
+                sortie[categorie].append(motif.format(app=APPS[(n * 3 + k) % len(APPS)]))
+    return sortie
 TONS = ["urgent", "calme", "neutre", "neutre"]
 DEBUTS = ["", "", "Hello, ", "Hi team, ", "Good morning, ", "Please help: ", "Could you investigate? ",
           "IT support request: "]
@@ -130,9 +194,10 @@ def symptomes_de_la_base() -> dict[str, list[str]]:
 
 
 def tous_les_symptomes() -> dict[str, list[str]]:
-    """Les symptômes écrits ici, puis ceux de la base, sans doublon."""
+    """Les symptômes écrits ici, puis ceux de la base, sans doublon (et ceux des applications, en option)."""
     base = symptomes_de_la_base()
-    return {c: list(dict.fromkeys([*SYMPTOMES[c], *base[c]])) for c in CATEGORIES}
+    apps = symptomes_applications() if APPLICATIONS else {c: [] for c in CATEGORIES}
+    return {c: list(dict.fromkeys([*SYMPTOMES[c], *base[c], *apps[c]])) for c in CATEGORIES}
 
 
 def priorite_du_ton(ton: str, categorie: str) -> str:
@@ -175,6 +240,13 @@ def generer(graine: int = GRAINE) -> list[tuple[str, str, str, str]]:
     rng = random.Random(graine)
     symptomes = tous_les_symptomes()
     lignes = [ligne for categorie in CATEGORIES for ligne in incidents(categorie, rng, symptomes)]
+    if AUGMENTATION:  # la copie réécrite garde le groupe : elle reste du même côté du découpage
+        copies = []
+        for t, c, p, g in lignes:
+            texte, coupe = reecrire(t, rng)
+            # sans sa formule d'urgence ou de calme, la copie prend la priorité de sa catégorie (même règle)
+            copies.append((texte, c, priorite_du_ton("neutre", c) if coupe else p, g))
+        lignes += copies
     rng.shuffle(lignes)
     return lignes
 

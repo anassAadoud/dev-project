@@ -33,7 +33,7 @@ sys.path.insert(0, str(RACINE / "src"))
 from historique import charger_historique, plus_semblable  # noqa: E402
 from kb import article_le_plus_proche, categories_proches, charger_base  # noqa: E402
 from kb import chercher as _chercher  # noqa: E402
-from predict import charger_modele  # noqa: E402
+from predict import charger_modele, est_vague, vectoriseur_mots  # noqa: E402
 from predict import predict as _predict  # noqa: E402
 
 # Seuils choisis avec python src/courbe_seuil.py et le notebook (voir docs/semaine4.md).
@@ -107,7 +107,8 @@ class SupportClassifier:
         r = _predict(text)
         label: Label = "INDETERMINE"
         source: Source = "aucune"
-        if r["connus"] >= SEUIL_VOCABULAIRE:
+        vague = est_vague(text, vectoriseur_mots(charger_modele()["categorie"]))
+        if r["connus"] >= SEUIL_VOCABULAIRE and not vague:  # TP5.2 : un message trop vague n'est jamais tranché
             if r["score"] >= SEUIL_ABSTENTION:
                 label, source = CORRESPONDANCE[r["label"]], "modele"
             else:  # le modèle hésite : la base de connaissances donne un second avis

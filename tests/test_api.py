@@ -54,11 +54,28 @@ def test_predict_facturation(client):
     assert r.json()["label"] == "facturation"
 
 
-def test_second_avis_de_la_base(client):
-    """TP5.1 : le modèle hésite (confiance sous 0,60), mais un article de la base ressemble au texte."""
-    body = client.post("/predict", json={"text": "I typed my password wrong a few times and now my account is "
-                                                 "locked."}).json()
-    assert (body["label"], body["source"]) == ("compte_acces", "base") and body["score"] < 0.60
+@pytest.mark.parametrize("similarite, attendu", [(0.50, ("compte_acces", "base")), (0.10, ("INDETERMINE", "aucune"))])
+def test_second_avis_de_la_base(client, monkeypatch, similarite, attendu):
+    """TP5.1 : le modèle hésite (confiance sous 0,60) ; la base tranche si un article ressemble assez au texte.
+    TP5.2 : le modèle est simulé, pour tester la règle et non le modèle du moment."""
+    import api.model
+
+    monkeypatch.setattr(api.model, "_predict", lambda t: {"label": "logiciel", "score": 0.40, "priorite": "medium",
+                                                          "connus": 1.0})
+    monkeypatch.setattr(api.model, "article_le_plus_proche", lambda t: ("compte_acces", similarite))
+    body = client.post("/predict", json={"text": "my account is locked after too many attempts"}).json()
+    assert (body["label"], body["source"]) == attendu
+
+
+@pytest.mark.parametrize("texte", ["It does not work", "it is broken, please help", "not working again!!"])
+def test_message_trop_vague_n_est_jamais_tranche(client, texte):
+    """TP5.2 : sans aucun mot qui décrive l'incident, l'agent ne devine pas."""
+    assert client.post("/predict", json={"text": texte}).json()["label"] == "INDETERMINE"
+
+
+@pytest.mark.parametrize("texte", ["phishing??", "virus??", "printer offline"])
+def test_un_seul_mot_utile_suffit(client, texte):
+    assert client.post("/predict", json={"text": texte}).json()["label"] != "INDETERMINE"
 
 
 @pytest.mark.parametrize("texte", ["Mon VPN ne se connecte plus depuis ce matin", "xqzvb wlkptr grombu"])

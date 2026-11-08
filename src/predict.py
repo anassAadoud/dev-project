@@ -36,6 +36,32 @@ def charger_modele() -> Any:
     return joblib.load(MODELE)
 
 
+def vectoriseur_mots(pipeline: Any) -> Any:
+    """Le vectoriseur de mots du modèle de catégorie, celui du garde-fou de vocabulaire.
+    TP5.2 : le modèle peut assembler mots et caractères (FeatureUnion) ; le garde-fou ne lit que les mots,
+    car presque toute suite de lettres a des n-grammes de caractères connus."""
+    etape = pipeline.named_steps["tfidf"]
+    return etape if hasattr(etape, "vocabulary_") else dict(etape.transformer_list)["mots"]
+
+
+# TP5.2 : des mots qui ne disent rien de l'incident. Un message qui n'a qu'eux (« It does not work »,
+# « it is broken, please help ») est trop vague pour être classé : l'agent pose une question.
+GENERIQUES = frozenset({
+    "work", "works", "working", "worked", "broken", "problem", "problems", "issue", "issues", "help", "error", "errors",
+    "wrong", "fix", "fixed", "again", "thing", "things", "stuff", "please", "pls", "urgent", "today", "now", "still",
+    "doesnt", "dont", "cant", "wont", "isnt", "hi", "hello", "hey", "thanks", "thank", "thx", "asap", "team",
+    "support", "need", "want", "know", "ok", "okay", "anymore", "really", "weird", "strange", "since", "morning",
+    "does", "did", "doing", "done", "get", "got", "getting", "keep", "keeps", "seems", "seem", "happen", "happens",
+    "happened", "going", "anything", "something", "everything", "nothing", "guys", "sir", "madam", "dear",
+})
+
+
+def est_vague(texte: str, vectoriseur: Any) -> bool:
+    """Vrai si, hors mots vides, le texte n'a que des mots génériques (ou aucun mot)."""
+    mots = [t for t in vectoriseur.build_analyzer()(texte) if " " not in t and t not in ENGLISH_STOP_WORDS]
+    return not [m for m in mots if m not in GENERIQUES]
+
+
 def part_connue(texte: str, vectoriseur: Any) -> float:
     """Part des mots du texte (unigrammes) présents dans le vocabulaire du modèle (notebook, section 15.1).
 
@@ -57,7 +83,7 @@ def predict(texte: str) -> Resultat:
         "label": str(categorie.classes_[probas.argmax()]),
         "score": round(float(probas.max()), 4),
         "priorite": str(modeles["priorite"].predict([texte])[0]),
-        "connus": round(part_connue(texte, categorie.named_steps["tfidf"]), 4),
+        "connus": round(part_connue(texte, vectoriseur_mots(categorie)), 4),
     }
 
 
