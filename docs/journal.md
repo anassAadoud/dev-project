@@ -1052,4 +1052,10 @@ python src/historique.py --reel : 8452 tickets passés écrits dans data/histori
 
 ### Fin du TP5.1 : graphe, empreinte, étiquette, copie
 
-À compléter à la fin du TP5.1.
+**Graphe** (`graphify update .`, code seulement) : 810 nœuds, 1 555 arêtes, 29 groupes (531 nœuds au TP5). `graphify path "ui/app.py" "api/conversation.py"` ne trouve aucun chemin : la page n'atteint la politique que par HTTP, par `ui/client.py`. La règle d'architecture du cours est respectée.
+
+**Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
+
+**Étiquette** `tp5.1`, puis copie `Agent_support_info_TP5.1`. Après la vérification des tests depuis la copie, ses caches sont supprimés : la copie reste celle du commit `tp5.1`.
+
+**TP6** : pas encore fait. Il partira de cette version.
