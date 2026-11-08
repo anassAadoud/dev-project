@@ -48,3 +48,6 @@ htmlcov/
 
 # TP5
 !data/incidents_exemple.csv
+
+# TP5.1 : les 30 conversations du bilan des tickets
+!data/conversations_30.csv
