@@ -926,3 +926,13 @@ results.csv écrit (dossier temporaire)
 ### Membre B, après le TP5
 
 À faire par le membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, puis T29 à T33 dans son navigateur (`uvicorn api.main:app` et `streamlit run ui/app.py` dans deux terminaux).
+
+### Fin du TP5 : graphe, empreinte, étiquette, copie
+
+**Graphe** (`--update`) : 531 nœuds, 912 arêtes, 29 groupes.
+
+**Comparaison avec `sentiment-app`** : le groupe « Client HTTP de l'interface » (`Client`, `httpx`, `Response`, `test_client.py`) correspond à « Client de l'API et tests UI » de la référence, et « Tests de la page Streamlit » (`AppTest`, `test_api_injoignable`, `test_espaces_avertissement`) reprend le même découpage. Le graphe relie la règle « l'interface n'importe jamais predict() » au client et non au modèle : la règle d'architecture du guide est respectée. **Écarts** : nos tests de page ajoutent les parcours « résolu », « non résolu → ticket » et « inconnu → tri », absents de la référence, et le flux page → `ui/client` → `/assist` passe par le `motif` de la décision.
+
+**Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
+
+**Étiquette** `tp5`, puis copie `Agent_support_info_TP5`. Après la vérification des tests depuis la copie, ses caches (`__pycache__/`, `.hypothesis/`) sont supprimés : la copie reste celle du commit `tp5`.
