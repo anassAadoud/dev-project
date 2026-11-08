@@ -1,7 +1,7 @@
 """Contrats d'entrée et de sortie de l'API (Pydantic v2)."""
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 Label = Literal["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
 Priorite = Literal["high", "medium", "low"]
@@ -10,11 +10,20 @@ Decision = Literal["solution", "escalade"]
 EXEMPLE = "My VPN keeps disconnecting every 10 minutes when I work from home"
 
 
+def pas_que_des_blancs(valeur: str) -> str:
+    """Même règle que predict() : un texte que str.strip() vide est refusé (TP4, étape B)."""
+    if not valeur.strip():
+        raise ValueError("texte vide : il ne contient que des blancs")
+    return valeur
+
+
 class PredictRequest(BaseModel):
     """Requête de classement d'un incident."""
 
     text: str = Field(..., min_length=1, max_length=2000, description="Description de l'incident, en anglais",
                       examples=[EXEMPLE])
+
+    _texte_non_blanc = field_validator("text")(pas_que_des_blancs)
 
 
 class PredictResponse(BaseModel):
@@ -53,6 +62,8 @@ class TicketRequest(BaseModel):
     priorite: Priorite | None = Field(None, description="Priorité ; recalculée par l'API si absente")
     article_id: str | None = Field(None, description="L'article déjà essayé par l'utilisateur")
     raison: str | None = Field(None, description="Pourquoi le ticket est créé")
+
+    _texte_non_blanc = field_validator("text")(pas_que_des_blancs)
 
 
 class Ticket(BaseModel):
