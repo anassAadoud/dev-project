@@ -27,7 +27,7 @@ COLONNES = ["id", "categorie", "titre", "symptomes", "etapes", "escalade_si"]
 def charger_base() -> tuple[list[dict[str, str]], TfidfVectorizer, object]:
     """Lue et indexée une seule fois par processus, comme le modèle."""
     if not BASE.exists():
-        raise FileNotFoundError(f"{BASE.relative_to(RACINE).as_posix()} absent : la base de connaissances manque")
+        raise FileNotFoundError(f"base de connaissances introuvable : {BASE}")
     with BASE.open(encoding="utf-8", newline="") as f:
         articles = list(csv.DictReader(f))
     manquantes = set(COLONNES) - set(articles[0] if articles else {})

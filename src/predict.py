@@ -30,7 +30,8 @@ class Resultat(TypedDict):
 def charger_modele() -> Any:
     """Chargé une seule fois par processus, pas à chaque appel."""
     if not MODELE.exists():
-        raise FileNotFoundError(f"{MODELE.relative_to(RACINE).as_posix()} absent : lancez python src/train.py")
+        # Chemin complet, pas relatif au dépôt : le modèle peut se trouver ailleurs (TP4, test d'intégration).
+        raise FileNotFoundError(f"modèle introuvable : {MODELE}. Lancez python src/train.py")
     return joblib.load(MODELE)
 
 

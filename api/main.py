@@ -69,12 +69,19 @@ async def health_check() -> dict:
 
 @app.post("/predict", response_model=PredictResponse, summary="Classer un incident")
 async def predict(request: PredictRequest) -> dict:
-    """Renvoie la catégorie IT, la confiance et la priorité estimée."""
+    """Renvoie la catégorie IT (ou INDETERMINE), la confiance, la priorité et la part de mots connus.
+
+    - 422 : texte refusé par le contrat (vide, que des blancs, plus de 2000 caractères)
+    - 503 : modèle non chargé
+    - 500 : erreur inattendue (journalisée côté serveur, jamais renvoyée au client)
+    """
     clf = _classifier()
     try:
         result = clf.predict(request.text)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception:
+        # Le contrat a déjà refusé les textes invalides : toute exception ici est une panne (TP4, étape D).
+        logger.exception("Erreur dans /predict")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur") from None
     logger.info("predict: %r -> %s (%.2f, %s)", request.text[:50], result["label"], result["score"], result["priorite"])
     return result
 
@@ -86,8 +93,10 @@ async def assist(request: PredictRequest) -> dict:
     clf = _classifier()
     try:
         result = clf.assist(request.text)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception:
+        # Le contrat a déjà refusé les textes invalides : toute exception ici est une panne (TP4, étape D).
+        logger.exception("Erreur dans /assist")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur") from None
     logger.info("assist: %r -> %s, %s", request.text[:50], result["label"], result["decision"])
     return result
 
@@ -101,8 +110,9 @@ async def creer_ticket(request: TicketRequest) -> dict:
     if champs["label"] is None or champs["priorite"] is None:
         try:
             prediction = clf.predict(request.text)
-        except ValueError as e:
-            raise HTTPException(status_code=422, detail=str(e)) from e
+        except Exception:
+            logger.exception("Erreur dans /tickets")
+            raise HTTPException(status_code=500, detail="Erreur interne du serveur") from None
         champs["label"] = champs["label"] or prediction["label"]
         champs["priorite"] = champs["priorite"] or prediction["priorite"]
     champs["groupe"] = GROUPES[champs["label"]]
