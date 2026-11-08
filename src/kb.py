@@ -3,7 +3,9 @@
 
 La partie « recherche » d'un RAG, sans génération : similarité cosinus TF-IDF entre
 l'incident et le titre + les symptômes de chaque article de la même catégorie.
-Sous SEUIL_SIMILARITE, aucun article n'est proposé : l'incident sera escaladé.
+Sous SEUIL_SIMILARITE, aucun article n'est proposé : l'agent pose une question de précision.
+TP5.1 : on peut exclure les articles déjà essayés (deuxième proposition), et classer les
+catégories selon leur meilleur article (l'ordre des boutons quand le modèle hésite).
 
 Usage :
   python src/kb.py reseau "My VPN keeps disconnecting every 10 minutes"
@@ -11,6 +13,7 @@ Usage :
 """
 import csv
 import sys
+from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,6 +24,7 @@ RACINE = Path(__file__).resolve().parents[1]
 BASE = RACINE / "data" / "base_connaissances.csv"
 SEUIL_SIMILARITE = 0.10  # en dessous, l'article ne parle pas de cet incident
 COLONNES = ["id", "categorie", "titre", "symptomes", "etapes", "escalade_si"]
+CATEGORIES = ["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
 
 
 @lru_cache(maxsize=1)
@@ -38,11 +42,16 @@ def charger_base() -> tuple[list[dict[str, str]], TfidfVectorizer, object]:
     return articles, vectoriseur, matrice
 
 
-def chercher(texte: str, categorie: str) -> dict | None:
-    """Le meilleur article de la catégorie, ou None si aucun n'est assez proche."""
+def _similarites(texte: str) -> tuple[list[dict[str, str]], list[float]]:
     articles, vectoriseur, matrice = charger_base()
-    similarites = cosine_similarity(vectoriseur.transform([texte]), matrice)[0]
-    candidats = [i for i, a in enumerate(articles) if a["categorie"] == categorie]
+    return articles, [float(s) for s in cosine_similarity(vectoriseur.transform([texte]), matrice)[0]]
+
+
+def chercher(texte: str, categorie: str, exclus: Iterable[str] = ()) -> dict | None:
+    """Le meilleur article de la catégorie, hors articles exclus, ou None si aucun n'est assez proche."""
+    articles, similarites = _similarites(texte)
+    deja = set(exclus)
+    candidats = [i for i, a in enumerate(articles) if a["categorie"] == categorie and a["id"] not in deja]
     if not candidats:
         return None
     meilleur = max(candidats, key=lambda i: similarites[i])
@@ -54,8 +63,19 @@ def chercher(texte: str, categorie: str) -> dict | None:
         "titre": article["titre"],
         "etapes": [e.strip() for e in article["etapes"].split("|") if e.strip()],
         "escalade_si": article["escalade_si"],
-        "similarite": round(float(similarites[meilleur]), 3),
+        "similarite": round(similarites[meilleur], 3),
     }
+
+
+def categories_proches(texte: str) -> list[str]:
+    """Les 7 catégories, de celle dont un article ressemble le plus au texte à la moins proche.
+    À égalité (aucun mot commun), l'ordre de CATEGORIES est gardé."""
+    articles, similarites = _similarites(texte)
+    meilleure = dict.fromkeys(CATEGORIES, 0.0)
+    for article, similarite in zip(articles, similarites, strict=True):
+        if article["categorie"] in meilleure:
+            meilleure[article["categorie"]] = max(meilleure[article["categorie"]], similarite)
+    return sorted(CATEGORIES, key=lambda c: -meilleure[c])
 
 
 def main() -> int:

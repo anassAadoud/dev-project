@@ -1,7 +1,7 @@
 """Contrats d'entrée et de sortie de l'API (Pydantic v2)."""
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 Categorie = Literal["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
 # TP4 : sous le seuil d'abstention, ou avec trop de mots inconnus, l'API ne tranche pas.
@@ -11,6 +11,14 @@ Priorite = Literal["high", "medium", "low"]
 Decision = Literal["solution", "escalade"]
 # TP5 : le motif de la décision, un code que l'interface traduit pour l'utilisateur.
 Motif = Literal["mots_inconnus", "confiance_basse", "priorite_haute", "sans_article", "article_escalade", "solution"]
+# TP5.1 : la conversation. L'action de l'utilisateur, la phase où en est l'agent, et le code de sa
+# réponse, que l'interface traduit en anglais (comme le motif du TP5).
+Action = Literal["message", "resolu", "pas_resolu", "categorie", "demander_ticket", "confirmer_ticket",
+                 "refuser_ticket"]
+Phase = Literal["solution", "precision", "proposition_ticket", "resolu", "ticket"]
+Code = Literal["solution", "autre_solution", "question_precision", "choisir_categorie", "reformuler", "critique",
+               "deux_essais", "demande", "resolu", "ticket_cree", "ticket_refuse"]
+Statut = Literal["ouvert", "en_cours", "resolu", "ferme"]
 
 EXEMPLE = "My VPN keeps disconnecting every 10 minutes when I work from home"
 
@@ -69,22 +77,140 @@ class TicketRequest(BaseModel):
     priorite: Priorite | None = Field(None, description="Priorité ; recalculée par l'API si absente")
     article_id: str | None = Field(None, description="L'article déjà essayé par l'utilisateur")
     raison: str | None = Field(None, description="Pourquoi le ticket est créé")
+    conversation_id: str | None = Field(None, description="La conversation d'origine : un seul ticket par conversation")
 
     _texte_non_blanc = field_validator("text")(pas_que_des_blancs)
 
 
+class EssaiTicket(BaseModel):
+    """Un article déjà essayé sans succès, recopié dans le ticket."""
+
+    article_id: str
+    titre: str
+    etapes_faites: list[str] = Field(default_factory=list)
+
+
+class Evenement(BaseModel):
+    """Un changement de statut du ticket (le suivi)."""
+
+    le: str
+    statut: Statut
+    commentaire: str | None = None
+
+
 class Ticket(BaseModel):
-    """Un ticket enregistré."""
+    """Un ticket enregistré, avec son suivi (TP5.1)."""
 
     id: str
     cree_le: str
-    statut: Literal["ouvert"]
+    statut: Statut
     text: str
     label: Label
     priorite: Priorite
     groupe: str
     article_id: str | None
     raison: str
+    conversation_id: str | None = None
+    resume: str | None = Field(None, description="Le résumé de la conversation, pour le technicien")
+    essais: list[EssaiTicket] = Field(default_factory=list, description="Les articles déjà essayés")
+    resolution: str | None = Field(None, description="Ce qui a réglé l'incident (rempli par le technicien)")
+    historique: list[Evenement] = Field(default_factory=list)
+
+
+class TicketUpdate(BaseModel):
+    """Le technicien fait avancer le ticket : nouveau statut, commentaire, résolution."""
+
+    statut: Statut
+    commentaire: str | None = Field(None, max_length=2000)
+    resolution: str | None = Field(None, max_length=2000)
+
+
+class ChatRequest(BaseModel):
+    """Un tour de conversation : un message, ou un clic sur un bouton de la page."""
+
+    conversation_id: str | None = Field(None, description="Absent pour commencer une conversation")
+    action: Action = "message"
+    text: str | None = Field(None, min_length=1, max_length=2000, examples=[EXEMPLE])
+    categorie: Categorie | None = Field(None, description="La catégorie choisie (action « categorie »)")
+    etapes_faites: list[str] = Field(default_factory=list, max_length=20,
+                                     description="Les étapes cochées (action « pas_resolu »)")
+
+    @field_validator("text")
+    @classmethod
+    def _texte_non_blanc(cls, valeur: str | None) -> str | None:
+        return None if valeur is None else pas_que_des_blancs(valeur)
+
+    @model_validator(mode="after")
+    def _champs_de_l_action(self) -> "ChatRequest":
+        if self.action == "message" and self.text is None:
+            raise ValueError("l'action « message » demande un texte")
+        if self.action == "categorie" and self.categorie is None:
+            raise ValueError("l'action « categorie » demande une catégorie")
+        if self.action != "message" and self.conversation_id is None:
+            raise ValueError("seul un message peut commencer une conversation")
+        return self
+
+
+class TicketSemblable(BaseModel):
+    """Le ticket passé le plus proche, et ce qui l'a réglé."""
+
+    id: str
+    text: str
+    resolution: str
+    similarite: float = Field(..., ge=0, le=1)
+    source: str = Field(..., description="tickets de l'agent, ou historique Tobi-Bueck")
+
+
+class ChatResponse(BaseModel):
+    """La réponse de l'agent pour un tour : la phase, le code du message, et ce qu'il faut afficher."""
+
+    conversation_id: str
+    tour: int
+    phase: Phase
+    code: Code
+    label: Label
+    score: float = Field(..., ge=0, le=1)
+    priorite: Priorite
+    categorie: Categorie | None
+    article: Article | None
+    categories: list[Categorie] = Field(default_factory=list,
+                                        description="Les boutons de catégories, de la plus probable à la moins probable")
+    choix: list[Action] = Field(..., description="Les actions possibles maintenant")
+    tentatives: int
+    essais: list[EssaiTicket]
+    ticket: Ticket | None = None
+    ticket_semblable: TicketSemblable | None = None
+    reformulation: str | None = Field(None, description="Réponse reformulée par le LLM (option, désactivée par défaut)")
+
+
+class FeedbackRequest(BaseModel):
+    """👍 ou 👎 sur une réponse de l'agent."""
+
+    conversation_id: str
+    tour: int = Field(..., ge=1)
+    utile: bool
+    commentaire: str | None = Field(None, max_length=500)
+
+
+class Feedback(FeedbackRequest):
+    id: str
+    le: str
+    code: Code
+
+
+class StatsResponse(BaseModel):
+    """Les chiffres de la page de statistiques."""
+
+    conversations: int
+    resolues_sans_ticket: int
+    avec_ticket: int
+    en_cours: int
+    taux_resolution_sans_ticket: float | None = Field(..., description="résolues sans ticket / conversations terminées")
+    categories: dict[str, int]
+    tickets_par_statut: dict[str, int]
+    avis_utiles: int
+    avis_pas_utiles: int
+    tentatives_moyennes: float | None
 
 
 class HealthResponse(BaseModel):
@@ -93,3 +219,4 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="OK si le modèle et la base sont chargés")
     model: str = Field(..., description="Nom du modèle servi")
     articles: int = Field(..., description="Nombre d'articles dans la base de connaissances")
+    llm: str = Field("off", description="Reformulation par un LLM : off (par défaut) ou le modèle Ollama utilisé")

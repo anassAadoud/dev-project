@@ -1,43 +1,53 @@
-"""Le stockage des tickets : un fichier JSON Lines, une ligne par ticket, hors de Git.
+"""Les tickets : création, lecture, suivi du statut (TP3, suivi au TP5.1).
 
-Le chemin vient de la variable d'environnement SUPPORT_TICKETS, sinon tickets/tickets.jsonl
-à la racine du dépôt. Les tests le redirigent vers un dossier temporaire.
+Ils sont rangés par api/stockage.py dans tickets.jsonl (chemin : variable SUPPORT_TICKETS,
+sinon tickets/tickets.jsonl à la racine du dépôt). Chaque changement de statut ajoute une
+version du ticket, avec un événement dans son historique.
 """
-import json
-import os
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 
-RACINE = Path(__file__).resolve().parents[1]
+from api import stockage
+from api.stockage import chemin_tickets
+
+__all__ = ["chemin_tickets", "creer", "lire", "lister", "mettre_a_jour", "pour_conversation"]
 
 
-def chemin_tickets() -> Path:
-    """SUPPORT_TICKETS si elle est définie, sinon tickets/tickets.jsonl dans le dépôt."""
-    return Path(os.environ.get("SUPPORT_TICKETS") or RACINE / "tickets" / "tickets.jsonl")
+def maintenant() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def creer(champs: dict) -> dict:
-    """Ajoute un ticket ouvert et le renvoie, avec son identifiant et sa date."""
-    ticket = {"id": f"TCK-{uuid.uuid4().hex[:8].upper()}",
-              "cree_le": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-              "statut": "ouvert", **champs}
-    chemin = chemin_tickets()
-    chemin.parent.mkdir(parents=True, exist_ok=True)
-    with chemin.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(ticket, ensure_ascii=False) + "\n")
-    return ticket
+    """Ajoute un ticket ouvert et le renvoie, avec son identifiant, sa date et son premier événement."""
+    le = maintenant()
+    ticket = {"id": f"TCK-{uuid.uuid4().hex[:8].upper()}", "cree_le": le, "statut": "ouvert", **champs,
+              "historique": [{"le": le, "statut": "ouvert", "commentaire": champs.get("raison")}]}
+    return stockage.ajouter("tickets", ticket)
 
 
 def lire(identifiant: str) -> dict | None:
-    """Le ticket portant cet identifiant, ou None."""
-    chemin = chemin_tickets()
-    if not chemin.exists():
+    """Le ticket portant cet identifiant (sa version actuelle), ou None."""
+    return stockage.lire("tickets", identifiant)
+
+
+def lister() -> list[dict]:
+    return stockage.tous("tickets")
+
+
+def pour_conversation(conversation_id: str) -> dict | None:
+    """Le ticket déjà créé pour cette conversation, s'il existe : il ne peut y en avoir qu'un."""
+    return next((t for t in lister() if t.get("conversation_id") == conversation_id), None)
+
+
+def mettre_a_jour(identifiant: str, statut: str, commentaire: str | None = None,
+                  resolution: str | None = None) -> dict | None:
+    """Change le statut du ticket et garde la trace du changement ; None si le ticket n'existe pas."""
+    ticket = lire(identifiant)
+    if ticket is None:
         return None
-    with chemin.open(encoding="utf-8") as f:
-        for ligne in f:
-            if ligne.strip():
-                ticket = json.loads(ligne)
-                if ticket["id"] == identifiant:
-                    return ticket
-    return None
+    ticket["statut"] = statut
+    if resolution:
+        ticket["resolution"] = resolution
+    ticket["historique"] = [*ticket.get("historique", []),
+                            {"le": maintenant(), "statut": statut, "commentaire": commentaire}]
+    return stockage.ajouter("tickets", ticket)

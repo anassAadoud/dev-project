@@ -7,17 +7,26 @@ Les règles d'escalade de la fiche cas1 vivent ici : elles sont lisibles et test
 TP4 : l'API s'abstient (INDETERMINE) au lieu de deviner, dans deux cas : la confiance est
 sous SEUIL_ABSTENTION, ou moins de SEUIL_VOCABULAIRE des mots sont connus du modèle.
 Les étiquettes du modèle passent par des correspondances explicites, vérifiées au démarrage.
+
+TP5.1 : la conversation (api/conversation.py) utilise ce classifier comme ses outils : le
+modèle, la base (articles déjà essayés exclus) et la création du ticket. /assist et ses règles
+restent ceux du TP4 : ils servent au tri d'un fichier de tickets.
 """
 import sys
+import uuid
 from collections.abc import Iterable
 from pathlib import Path
 from typing import TypedDict
 
-from api.schemas import Categorie, Decision, Label, Motif, Priorite
+from api import conversation, llm, stockage, tickets
+from api.conversation import Conversation
+from api.schemas import Action, Categorie, Decision, Label, Motif, Priorite
 
 RACINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RACINE / "src"))
-from kb import charger_base, chercher  # noqa: E402
+from historique import charger_historique, plus_semblable  # noqa: E402
+from kb import categories_proches, charger_base  # noqa: E402
+from kb import chercher as _chercher  # noqa: E402
 from predict import charger_modele  # noqa: E402
 from predict import predict as _predict  # noqa: E402
 
@@ -66,6 +75,10 @@ class Assistance(Prediction):
     article: dict | None
 
 
+class ConversationInconnue(KeyError):
+    """Aucune conversation ne porte cet identifiant (l'API répond 404)."""
+
+
 class SupportClassifier:
     """Enveloppe du modèle TP2 et de la base, avec l'interface attendue par l'API."""
 
@@ -90,10 +103,61 @@ class SupportClassifier:
     def assist(self, text: str) -> Assistance:
         """Classe l'incident, cherche un article, puis applique les règles d'escalade."""
         prediction = self.predict(text)
-        article = None if prediction["label"] == "INDETERMINE" else chercher(text, prediction["label"])
+        article = None if prediction["label"] == "INDETERMINE" else _chercher(text, prediction["label"])
         decision, motif, raison = decider(prediction, article)
         return {**prediction, "decision": decision, "motif": motif, "raison": raison,
                 "groupe": GROUPES[prediction["label"]], "article": article}
+
+    # --- Les outils de la conversation (TP5.1) ---
+
+    def chercher(self, text: str, categorie: str, exclus: Iterable[str] = ()) -> dict | None:
+        return _chercher(text, categorie, exclus)
+
+    def creer_ticket_conversation(self, conv: Conversation) -> dict:
+        """Le seul ticket de la conversation, pré-rempli : résumé, catégorie, étapes déjà essayées."""
+        existant = tickets.pour_conversation(conv["id"])
+        if existant is not None:
+            return existant
+        label: Label = conv["categorie"] or "INDETERMINE"
+        dernier = conv["essais"][-1]["article_id"] if conv["essais"] else (conv["article"] or {}).get("id")
+        return tickets.creer({
+            "text": conversation.texte_complet(conv)[:2000], "label": label, "priorite": conv["priorite"],
+            "groupe": GROUPES[label], "article_id": dernier, "raison": conversation.raison_du_ticket(conv),
+            "conversation_id": conv["id"], "resume": conversation.resumer(conv), "essais": conv["essais"]})
+
+    def ticket_semblable(self, conv: Conversation) -> dict | None:
+        """Le ticket passé le plus proche : tickets résolus de l'agent, puis historique Tobi-Bueck."""
+        resolus = [{"id": t["id"], "text": t["text"], "categorie": t["label"], "resolution": t.get("resolution"),
+                    "source": "agent tickets"}
+                   for t in tickets.lister() if t["statut"] in {"resolu", "ferme"} and t.get("conversation_id") != conv["id"]]
+        texte = conversation.texte_complet(conv)
+        return (plus_semblable(texte, resolus, conv["categorie"])
+                or plus_semblable(texte, list(charger_historique()), conv["categorie"]))
+
+    def discuter(self, conversation_id: str | None, action: Action, text: str | None = None,
+                 categorie: Categorie | None = None, etapes_faites: Iterable[str] = ()) -> dict:
+        """Un tour de conversation : charge l'état, applique la politique, sauvegarde, prépare la réponse."""
+        if conversation_id is None:
+            conv = conversation.nouvelle(f"CNV-{uuid.uuid4().hex[:8].upper()}")
+        else:
+            trouvee = stockage.lire("conversations", conversation_id)
+            if trouvee is None:
+                raise ConversationInconnue(conversation_id)
+            conv = trouvee  # type: ignore[assignment]  # un dict relu du fichier, de la forme Conversation
+        conv = conversation.avancer(conv, action, self, texte=text, categorie=categorie, etapes_faites=etapes_faites)
+        stockage.ajouter("conversations", dict(conv))
+        en_cours = conv["phase"] not in {"resolu", "ticket"}
+        return {
+            "conversation_id": conv["id"], "tour": len(conv["tours"]), "phase": conv["phase"], "code": conv["code"],
+            "label": conv["label"], "score": conv["score"], "priorite": conv["priorite"],
+            "categorie": conv["categorie"], "article": conv["article"],
+            "categories": categories_proches(conversation.texte_complet(conv)) if conv["phase"] == "precision" else [],
+            "choix": conversation.actions_possibles(conv), "tentatives": conv["tentatives"], "essais": conv["essais"],
+            "ticket": tickets.lire(conv["ticket_id"]) if conv["ticket_id"] else None,
+            "ticket_semblable": self.ticket_semblable(conv) if en_cours and conv["categorie"] else None,
+            "reformulation": (llm.reformuler(conversation.texte_complet(conv), conv["article"])
+                              if conv["phase"] == "solution" else None),
+        }
 
 
 def verifier_etiquettes(nom: str, classes: Iterable[object], connues: set[str]) -> None:
