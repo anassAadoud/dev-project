@@ -125,7 +125,7 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 ## Données nécessaires et leur origine
 
 - **Jeu réel** : `Tobi-Bueck/customer-support-tickets` (Hugging Face, CC BY-NC 4.0, tickets fictifs). Filtres : `language == "en"`, `type == "Incident"`, texte = `subject + " " + body`, doublons retirés : 9 179 incidents (notebook `tobi_bueck_incidents_v3.ipynb`, section 4).
-- **Étiquette** : la catégorie IT tirée des `tag_*`, première règle qui correspond (section 15.2), identifiants ASCII `securite`, `reseau`, `materiel`, `compte_acces`, `facturation`, `logiciel`, `panne_service` ; les 913 incidents sans catégorie sont écartés, il en reste 8 266.
+- **Étiquette** : la catégorie IT tirée des `tag_*`, première règle qui correspond (section 15.2), identifiants ASCII `securite`, `reseau`, `materiel`, `compte_acces`, `facturation`, `logiciel`, `panne_service` ; les 913 incidents sans catégorie sont écartés, il en reste 8 266 dans le notebook. **Mis à jour au TP2** : `src/train.py --reel` n'applique pas le filtre du notebook sur les queues rares (`MIN_PAR_QUEUE`, 252 tickets), qui ne fait pas partie des filtres retenus ; il garde donc **8 452** incidents étiquetés.
 - **Priorité** : la colonne `priority` (low / medium / high), pour un second modèle (section 9).
 - **Jeu de démonstration** : `src/make_demo.py` génère un jeu synthétique anglais avec les mêmes 7 catégories, pour la CI et les tests (rapide, sans réseau), comme le jeu de démonstration d'avis dans `sentiment-app`.
 - **Base de connaissances** : `data/base_connaissances.csv`, en anglais, au moins 3 articles par catégorie, rédigée par le binôme.
@@ -167,3 +167,4 @@ Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST
 | Date | TP | Changement |
 | --- | --- | --- |
 | 2026-11-08 | TP1 | Cadrage du projet ajouté sous la version initiale ; trois fiches `cas*.md` |
+| 2026-11-08 | TP2 | Données réelles : 8 452 incidents étiquetés (pas de filtre sur les queues rares) ; F1 macro mesuré 0,789 sur Tobi-Bueck, 0,856 sur la démonstration ; priorité : F1 0,661, rappel `high` 0,717 |
