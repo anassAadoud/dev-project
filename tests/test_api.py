@@ -54,6 +54,32 @@ def test_predict_facturation(client):
     assert r.json()["label"] == "facturation"
 
 
+def test_second_avis_de_la_base(client):
+    """TP5.1 : le modèle hésite (confiance sous 0,60), mais un article de la base ressemble au texte."""
+    body = client.post("/predict", json={"text": "I typed my password wrong a few times and now my account is "
+                                                 "locked."}).json()
+    assert (body["label"], body["source"]) == ("compte_acces", "base") and body["score"] < 0.60
+
+
+@pytest.mark.parametrize("texte", ["Mon VPN ne se connecte plus depuis ce matin", "xqzvb wlkptr grombu"])
+def test_mots_inconnus_jamais_tranches_par_la_base(client, texte):
+    """Une autre langue ou du charabia va au tri, même si un mot (VPN) ressemble à un article."""
+    body = client.post("/predict", json={"text": texte}).json()
+    assert (body["label"], body["source"]) == ("INDETERMINE", "aucune")
+
+
+@pytest.mark.parametrize("texte", ["Tell me a joke", "What is the meaning of life right now?",
+                                   "Our coffee machine leaks water on the floor"])
+def test_hors_sujet_va_au_tri(client, texte):
+    """TP5.1 : les mots vides ne comptent plus comme des mots connus."""
+    assert client.post("/predict", json={"text": texte}).json()["label"] == "INDETERMINE"
+
+
+def test_source_du_modele(client):
+    body = client.post("/predict", json={"text": "My VPN keeps disconnecting and the network is unstable"}).json()
+    assert body["source"] == "modele"
+
+
 def test_predict_texte_vide_422(client):
     assert client.post("/predict", json={"text": ""}).status_code == 422
     assert client.post("/predict", json={"text": "   "}).status_code == 422

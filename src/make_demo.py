@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 """Génère un jeu de démonstration d'incidents informatiques en anglais, déterministe.
 
-350 incidents, 50 par catégorie IT (securite, reseau, materiel, compte_acces,
+805 incidents, 115 par catégorie IT (securite, reseau, materiel, compte_acces,
 facturation, logiciel, panne_service) :
-  - 40 incidents nets par catégorie, écrits comme un utilisateur les écrit ;
-  - 10 incidents mêlés par catégorie : un symptôme d'une autre catégorie d'abord,
+  - 100 incidents nets par catégorie, écrits comme un utilisateur les écrit ;
+  - 15 incidents mêlés par catégorie : un symptôme d'une autre catégorie d'abord,
     un retournement (« but the real problem is that »), puis le vrai problème, celui
     qui donne l'étiquette. Comme les avis mitigés de sentiment-app, ils sont volontaires :
     un sac de mots y voit deux symptômes de même poids et ne sait pas lequel conclut.
 Chaque incident a aussi une priorité (low, medium, high), qui suit les mots
 d'urgence ou de gêne de la phrase, pour entraîner le second modèle.
+
+TP5.1 : les symptômes viennent aussi de la base de connaissances (titre et symptômes de chaque
+article). Au TP5, 36 symptômes seulement donnaient un vocabulaire de 661 mots, et le modèle
+hésitait sur 63 % d'un fichier de 1 000 tickets réels. La base et le modèle parlent maintenant
+le même vocabulaire, et un article ajouté à la base enrichit aussi le jeu de démonstration.
 
 Usage : python src/make_demo.py
 Produit : data/demo_incidents.csv
@@ -21,9 +26,10 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[1]
 SORTIE = RACINE / "data" / "demo_incidents.csv"
+BASE = RACINE / "data" / "base_connaissances.csv"
 GRAINE = 42
 CATEGORIES = ["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
-NETS, MELES = 40, 10
+NETS, MELES = 100, 15
 
 # Le cœur de chaque incident : ce qui ne marche plus, en mots d'utilisateur.
 SYMPTOMES = {
@@ -93,7 +99,27 @@ RETOURNEMENTS = ["but the real problem is that", "that was fixed, however now", 
 URGENT = ["urgent, the whole team is blocked", "nobody can work, please fix it now", "critical for today's deadline"]
 MOYEN = ["it happens every day", "please have a look today", "it slows down my work"]
 FAIBLE = ["no rush, it is just annoying", "only sometimes, not blocking", "when you have time"]
-DEBUTS = ["", "Hello, ", "Hi team, ", "Good morning, "]
+DEBUTS = ["", "", "Hello, ", "Hi team, ", "Good morning, ", "Please help: ", "Could you investigate? ",
+          "IT support request: "]
+
+
+def symptomes_de_la_base() -> dict[str, list[str]]:
+    """Le titre et chaque symptôme des articles de la base, rangés par catégorie (TP5.1)."""
+    trouves: dict[str, list[str]] = {c: [] for c in CATEGORIES}
+    if not BASE.exists():
+        return trouves
+    with BASE.open(encoding="utf-8", newline="") as f:
+        for article in csv.DictReader(f):
+            if article["categorie"] in trouves:
+                morceaux = [article["titre"], *article["symptomes"].split(";")]
+                trouves[article["categorie"]] += [m.strip()[0].lower() + m.strip()[1:] for m in morceaux if m.strip()]
+    return trouves
+
+
+def tous_les_symptomes() -> dict[str, list[str]]:
+    """Les symptômes écrits ici, puis ceux de la base, sans doublon."""
+    base = symptomes_de_la_base()
+    return {c: list(dict.fromkeys([*SYMPTOMES[c], *base[c]])) for c in CATEGORIES}
 
 
 def phrase(symptome: str, contexte: str, priorite: str, rng: random.Random) -> str:
@@ -104,21 +130,25 @@ def phrase(symptome: str, contexte: str, priorite: str, rng: random.Random) -> s
     return texte[0].upper() + texte[1:]
 
 
-def incidents(categorie: str, rng: random.Random) -> list[tuple[str, str, str]]:
+def incidents(categorie: str, rng: random.Random, symptomes: dict[str, list[str]]) -> list[tuple[str, str, str]]:
     lignes = []
     autres = [c for c in CATEGORIES if c != categorie]
+    propres = symptomes[categorie]
     for i in range(NETS + MELES):
         priorite = ["high", "medium", "low"][i % 3]
         contexte = ""
         if i >= NETS:  # incident mêlé : d'abord le symptôme d'une autre catégorie, puis le retournement
-            contexte = f"{rng.choice(SYMPTOMES[rng.choice(autres)])}, {rng.choice(RETOURNEMENTS)}"
-        lignes.append((phrase(rng.choice(SYMPTOMES[categorie]), contexte, priorite, rng), categorie, priorite))
+            contexte = f"{rng.choice(symptomes[rng.choice(autres)])}, {rng.choice(RETOURNEMENTS)}"
+        # Chaque symptôme sert au moins une fois, puis au hasard.
+        symptome = propres[i] if i < min(len(propres), NETS) else rng.choice(propres)
+        lignes.append((phrase(symptome, contexte, priorite, rng), categorie, priorite))
     return lignes
 
 
 def main() -> int:
     rng = random.Random(GRAINE)
-    lignes = [ligne for categorie in CATEGORIES for ligne in incidents(categorie, rng)]
+    symptomes = tous_les_symptomes()
+    lignes = [ligne for categorie in CATEGORIES for ligne in incidents(categorie, rng, symptomes)]
     rng.shuffle(lignes)
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     with SORTIE.open("w", encoding="utf-8", newline="") as f:

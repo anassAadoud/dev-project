@@ -275,6 +275,7 @@ with onglet_lot:
             tickets["priority"] = [r.priorite for r in reponses]
             tickets["decision"] = [r.decision for r in reponses]
             tickets["team"] = [r.groupe for r in reponses]
+            tickets["decided by"] = [client.SOURCES.get(r.corps.get("source", ""), "") for r in reponses]
             st.dataframe(tickets, use_container_width=True)
             st.write(client.resumer(reponses))
             st.write(f"{client.a_escalader(reponses)} of {len(reponses)} tickets go to a technician.")

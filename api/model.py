@@ -8,6 +8,10 @@ TP4 : l'API s'abstient (INDETERMINE) au lieu de deviner, dans deux cas : la conf
 sous SEUIL_ABSTENTION, ou moins de SEUIL_VOCABULAIRE des mots sont connus du modèle.
 Les étiquettes du modèle passent par des correspondances explicites, vérifiées au démarrage.
 
+TP5.1 : quand le modèle hésite (confiance sous le seuil) mais connaît les mots, la base de
+connaissances donne un second avis : si un article ressemble assez au texte (SEUIL_BASE), sa
+catégorie est retenue. Les mots inconnus (autre langue, charabia) vont toujours au tri.
+
 TP5.1 : la conversation (api/conversation.py) utilise ce classifier comme ses outils : le
 modèle, la base (articles déjà essayés exclus) et la création du ticket. /assist et ses règles
 restent ceux du TP4 : ils servent au tri d'un fichier de tickets.
@@ -20,12 +24,12 @@ from typing import TypedDict
 
 from api import conversation, llm, stockage, tickets
 from api.conversation import Conversation
-from api.schemas import Action, Categorie, Decision, Label, Motif, Priorite
+from api.schemas import Action, Categorie, Decision, Label, Motif, Priorite, Source
 
 RACINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RACINE / "src"))
 from historique import charger_historique, plus_semblable  # noqa: E402
-from kb import categories_proches, charger_base  # noqa: E402
+from kb import article_le_plus_proche, categories_proches, charger_base  # noqa: E402
 from kb import chercher as _chercher  # noqa: E402
 from predict import charger_modele  # noqa: E402
 from predict import predict as _predict  # noqa: E402
@@ -33,6 +37,9 @@ from predict import predict as _predict  # noqa: E402
 # Seuils choisis avec python src/courbe_seuil.py et le notebook (voir docs/semaine4.md).
 SEUIL_ABSTENTION = 0.60
 SEUIL_VOCABULAIRE = 0.50
+# TP5.1 : similarité minimale de l'article le plus proche pour que la base tranche à la place du modèle.
+# Mesuré sur le jeu d'évaluation (94 messages) et les 50 messages de développement : src/bilan_evaluation.py.
+SEUIL_BASE = 0.25
 
 # Étiquettes du modèle -> étiquettes du contrat. Toute autre étiquette est refusée au démarrage.
 CORRESPONDANCE: dict[str, Categorie] = {
@@ -63,6 +70,7 @@ class Prediction(TypedDict):
     priorite: Priorite
     connus: float
     text: str
+    source: Source
 
 
 class Assistance(Prediction):
@@ -95,10 +103,17 @@ class SupportClassifier:
     def predict(self, text: str) -> Prediction:
         """Renvoie la catégorie du contrat (ou INDETERMINE), la confiance, la priorité et un aperçu."""
         r = _predict(text)
-        sur = r["score"] >= SEUIL_ABSTENTION and r["connus"] >= SEUIL_VOCABULAIRE
-        label: Label = CORRESPONDANCE[r["label"]] if sur else "INDETERMINE"
+        label: Label = "INDETERMINE"
+        source: Source = "aucune"
+        if r["connus"] >= SEUIL_VOCABULAIRE:
+            if r["score"] >= SEUIL_ABSTENTION:
+                label, source = CORRESPONDANCE[r["label"]], "modele"
+            else:  # le modèle hésite : la base de connaissances donne un second avis
+                categorie, similarite = article_le_plus_proche(text)
+                if similarite >= SEUIL_BASE:
+                    label, source = CORRESPONDANCE[categorie], "base"
         return {"label": label, "score": r["score"], "priorite": PRIORITES[r["priorite"]], "connus": r["connus"],
-                "text": text[:100]}
+                "text": text[:100], "source": source}
 
     def assist(self, text: str) -> Assistance:
         """Classe l'incident, cherche un article, puis applique les règles d'escalade."""

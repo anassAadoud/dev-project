@@ -125,6 +125,24 @@ def test_chercher_exclut_les_articles_essayes():
     assert premier["id"] == "KB-NET-01" and (second is None or second["id"] != premier["id"])
 
 
+def test_article_le_plus_proche():
+    from kb import article_le_plus_proche
+
+    assert article_le_plus_proche("The printer shows offline and nothing prints")[0] == "materiel"
+    assert article_le_plus_proche("zzzz")[1] == 0.0
+
+
+def test_les_mots_vides_ne_comptent_pas():
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    from predict import part_connue
+
+    vectoriseur = TfidfVectorizer().fit(["the printer is offline", "our vpn drops on the floor"])
+    assert part_connue("the printer", vectoriseur) == 1.0          # « the » est ignoré
+    assert part_connue("our coffee on the floor", vectoriseur) == 0.5  # coffee inconnu, floor connu
+    assert part_connue("the and of", vectoriseur) == 0.0           # que des mots vides
+
+
 def test_categories_proches():
     from kb import CATEGORIES, categories_proches
 

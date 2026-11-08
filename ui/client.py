@@ -56,6 +56,8 @@ REPLIQUES = {
     "ticket_cree": "Your ticket is created and sent to a technician. You can follow it in the Track a ticket tab.",
     "ticket_refuse": "OK, no ticket for now. Tell me more, or try the steps again.",
 }
+# Qui a choisi la catégorie (TP5.1) : le modèle, ou la base de connaissances quand le modèle hésite.
+SOURCES = {"modele": "model", "base": "knowledge base", "aucune": "nobody (sent to triage)"}
 # Les statuts d'un ticket, tels que l'utilisateur les lit.
 STATUTS = {"ouvert": "Open", "en_cours": "In progress", "resolu": "Resolved", "ferme": "Closed"}
 INJOIGNABLE = "API unreachable: start uvicorn api.main:app first."

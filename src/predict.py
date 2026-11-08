@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 import joblib
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 RACINE = Path(__file__).resolve().parents[1]
 MODELE = RACINE / "models" / "support.joblib"
@@ -36,8 +37,12 @@ def charger_modele() -> Any:
 
 
 def part_connue(texte: str, vectoriseur: Any) -> float:
-    """Part des mots du texte (unigrammes) présents dans le vocabulaire du modèle (notebook, section 15.1)."""
-    mots = [t for t in vectoriseur.build_analyzer()(texte) if " " not in t]
+    """Part des mots du texte (unigrammes) présents dans le vocabulaire du modèle (notebook, section 15.1).
+
+    TP5.1 : les mots vides anglais (the, is, on, our…) ne comptent plus. Ils sont connus de tout
+    modèle et ne disent rien de l'incident : « Our coffee machine leaks water on the floor » passait
+    le garde-fou avec 50 % de mots « connus », dont aucun ne parlait d'informatique."""
+    mots = [t for t in vectoriseur.build_analyzer()(texte) if " " not in t and t not in ENGLISH_STOP_WORDS]
     return sum(t in vectoriseur.vocabulary_ for t in mots) / len(mots) if mots else 0.0
 
 

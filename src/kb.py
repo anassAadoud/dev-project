@@ -67,6 +67,14 @@ def chercher(texte: str, categorie: str, exclus: Iterable[str] = ()) -> dict | N
     }
 
 
+def article_le_plus_proche(texte: str) -> tuple[str, float]:
+    """La catégorie de l'article le plus proche du texte, toutes catégories confondues, et sa similarité.
+    C'est le second avis de l'API quand le modèle hésite (TP5.1)."""
+    articles, similarites = _similarites(texte)
+    meilleur = max(range(len(articles)), key=lambda i: similarites[i])
+    return articles[meilleur]["categorie"], round(similarites[meilleur], 3)
+
+
 def categories_proches(texte: str) -> list[str]:
     """Les 7 catégories, de celle dont un article ressemble le plus au texte à la moins proche.
     À égalité (aucun mot commun), l'ordre de CATEGORIES est gardé."""
