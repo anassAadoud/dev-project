@@ -23,7 +23,7 @@ Ce journal est adapté de celui de `sentiment-app` : même structure (préparati
 
 **TP5 : l'interface Streamlit.** `ui/client.py` traduit chaque réponse de l'API. `ui/app.py` permet de décrire un incident, affiche des étapes cochables et la question « Is it solved? » (oui/non), puis crée le ticket ; un second onglet traite un fichier CSV de tickets. Le TP comprend les tests du client et de la page (AppTest), `data/incidents_exemple.csv` et `docs/semaine5.md`.
 
-**TP5.1 : améliorer l'agent (entre le TP5 et le TP6).** Diagnostic des tickets sur 30 conversations (`src/bilan_tickets.py`), puis une politique de conversation testée (`api/conversation.py`, `POST /chat`) : jamais de ticket au premier message, une autre solution ou une question de précision, le ticket après deux tentatives, sur demande ou pour un cas critique, toujours confirmé, un seul par conversation. Base de 42 articles, page en conversation, suivi des tickets, avis 👍/👎, statistiques, ticket passé le plus proche, Ollama en option. `docs/semaine5.1.md`.
+**TP5.1 : améliorer l'agent (entre le TP5 et le TP6).** Diagnostic des tickets sur 30 conversations (`src/bilan_tickets.py`), puis une politique de conversation testée (`api/conversation.py`, `POST /chat`) : jamais de ticket au premier message, une autre solution ou une question de précision, le ticket après deux tentatives, sur demande ou pour un cas critique, toujours confirmé, un seul par conversation. Base de 42 articles, page en conversation, suivi des tickets, avis sur les réponses, statistiques, ticket passé le plus proche, Ollama en option. `docs/semaine5.1.md`.
 
 **TP6 : packager l'application.** Le paquet `support_it` reçoit `predict.py` par `git mv`, et un fichier de compatibilité reste dans `src/`. L'API importe le paquet sans toucher `sys.path`. La commande `support` (`--version`, `predict`, `assist`, `serve`, `ui`) est ajoutée, ainsi que la variable `SUPPORT_MODELE`. `pyproject.toml` épingle scikit-learn ; la roue est construite puis installée hors du dépôt. Le TP se termine par `tests/test_packaging.py`, `CHANGELOG.md`, les étiquettes `tp6` et `v0.6.0`, et `docs/semaine6.md`.
 
@@ -950,7 +950,7 @@ results.csv écrit (dossier temporaire)
 
 **Date** : 8 novembre 2026 · **Fait par** : membre A (avec Claude Code)
 
-**Ce qui a été fait.** D'abord le diagnostic : 30 conversations réalistes (`data/conversations_30.csv`, versionné) et un utilisateur simulé (`src/bilan_tickets.py`). Ensuite la politique de conversation, dans un module pur (`api/conversation.py`), servie par `POST /chat`, avec ses 49 tests. Puis la base passe de 21 à 42 articles. Côté interface, une page en conversation (`st.chat_message`) : étapes cochables, « Solved » / « Not solved », boutons de catégories, confirmation du ticket, 👍/👎, suivi d'un ticket, statistiques. L'API reçoit le stockage des conversations et des avis (`api/stockage.py`), le suivi du statut (`PATCH /tickets/{id}`), les statistiques (`api/suivi.py`), le ticket passé le plus proche (`src/historique.py`) et la reformulation Ollama en option (`api/llm.py`). Le TP comprend aussi `docs/semaine5.1.md`, la fiche du projet, le README et `.env.example`. Un commit par étape, chacun avec les tests verts (sauf l'auteur unique), ruff et mypy muets.
+**Ce qui a été fait.** D'abord le diagnostic : 30 conversations réalistes (`data/conversations_30.csv`, versionné) et un utilisateur simulé (`src/bilan_tickets.py`). Ensuite la politique de conversation, dans un module pur (`api/conversation.py`), servie par `POST /chat`, avec ses 49 tests. Puis la base passe de 21 à 42 articles. Côté interface, une page en conversation (`st.chat_message`) : étapes cochables, « Solved » / « Not solved », boutons de catégories, confirmation du ticket, avis « Useful » / « Not useful », suivi d'un ticket, statistiques. Les icônes sont celles de Streamlit (Material), sans emojis. L'API reçoit le stockage des conversations et des avis (`api/stockage.py`), le suivi du statut (`PATCH /tickets/{id}`), les statistiques (`api/suivi.py`), le ticket passé le plus proche (`src/historique.py`) et la reformulation Ollama en option (`api/llm.py`). Le TP comprend aussi `docs/semaine5.1.md`, la fiche du projet, le README et `.env.example`. Un commit par étape, chacun avec les tests verts (sauf l'auteur unique), ruff et mypy muets.
 
 **Décisions et raisons.**
 
@@ -1018,11 +1018,11 @@ python -m pytest -q --cov=api --cov-fail-under=95 ; ruff check . ; mypy api
 ```
 Required test coverage of 95% reached. Total coverage: 99.49%
 FAILED tests/test_git_history.py::test_each_member_has_committed
-1 failed, 246 passed, 1 xfailed
+1 failed, 247 passed, 1 xfailed
 All checks passed! ; Success: no issues found in 9 source files
 ```
 
-- [x] Conforme, à l'échec d'auteur du TP1 près (128 tests de plus qu'au TP5)
+- [x] Conforme, à l'échec d'auteur du TP1 près (129 tests de plus qu'au TP5)
 
 ### T5.1-d · L'agent qui tourne
 
@@ -1057,5 +1057,7 @@ python src/historique.py --reel : 8452 tickets passés écrits dans data/histori
 **Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
 
 **Étiquette** `tp5.1`, puis copie `Agent_support_info_TP5.1`. Après la vérification des tests depuis la copie, ses caches sont supprimés : la copie reste celle du commit `tp5.1`.
+
+**Icônes au lieu des emojis** (demande du binôme, après la première copie) : la page utilise les icônes Material de Streamlit (`:material/...:`) pour l'agent, les onglets, les boutons et les catégories ; les avis deviennent « Useful » / « Not useful ». Un test vérifie qu'aucun emoji ne reste dans `ui/`. L'étiquette `tp5.1` a été déplacée sur ce commit et la copie `Agent_support_info_TP5.1` refaite (`robocopy /MIR`, mêmes exclusions). Les messages des commits précédents gardent leurs emojis : l'historique n'est pas réécrit.
 
 **TP6** : pas encore fait. Il partira de cette version.

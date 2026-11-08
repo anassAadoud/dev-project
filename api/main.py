@@ -189,7 +189,7 @@ async def chat(request: ChatRequest) -> dict:
     return result
 
 
-@app.post("/feedback", response_model=Feedback, status_code=201, summary="👍 ou 👎 sur une réponse")
+@app.post("/feedback", response_model=Feedback, status_code=201, summary="Avis sur une réponse (utile ou pas)")
 async def feedback(request: FeedbackRequest) -> dict:
     """Enregistre l'avis de l'utilisateur sur un tour de la conversation (404 si le tour n'existe pas)."""
     conversation = stockage.lire("conversations", request.conversation_id)

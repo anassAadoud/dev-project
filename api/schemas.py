@@ -184,7 +184,7 @@ class ChatResponse(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    """👍 ou 👎 sur une réponse de l'agent."""
+    """L'avis de l'utilisateur sur une réponse de l'agent : utile ou pas."""
 
     conversation_id: str
     tour: int = Field(..., ge=1)

@@ -18,8 +18,11 @@ import streamlit as st  # noqa: E402
 from ui import client  # noqa: E402
 
 BLEU = "#2a78d6"  # la teinte unique du graphique des catégories (une seule série)
-ICONES = {"securite": "🛡️", "reseau": "🌐", "materiel": "🖥️", "compte_acces": "🔑", "facturation": "💳",
-          "logiciel": "🧩", "panne_service": "🚨", "INDETERMINE": "❔"}
+# Icônes Material de Streamlit (pas d'emojis) : une par catégorie, une pour l'agent.
+ICONES = {"securite": ":material/shield:", "reseau": ":material/lan:", "materiel": ":material/computer:",
+          "compte_acces": ":material/key:", "facturation": ":material/credit_card:", "logiciel": ":material/apps:",
+          "panne_service": ":material/warning:", "INDETERMINE": ":material/help:"}
+AGENT = ":material/support_agent:"
 STYLE = """
 <style>
   .bloc-etapes {border-left: 3px solid #2a78d6; padding: 0.2rem 0 0.2rem 0.8rem; margin: 0.4rem 0;}
@@ -29,7 +32,7 @@ STYLE = """
 </style>
 """
 
-st.set_page_config(page_title="IT Support Agent", page_icon="🛠️")
+st.set_page_config(page_title="IT Support Agent", page_icon=AGENT)
 st.markdown(STYLE, unsafe_allow_html=True)
 
 session = client.creer_session()
@@ -90,7 +93,7 @@ def noter(r: client.Reponse, utile: bool) -> None:
 
 
 def libelle(categorie: str | None) -> str:
-    return f"{ICONES.get(categorie or 'INDETERMINE', '')} {client.VERDICTS[categorie or 'INDETERMINE']}"
+    return client.VERDICTS[categorie or "INDETERMINE"]
 
 
 def afficher_reponse(r: client.Reponse, derniere: bool) -> None:
@@ -102,7 +105,7 @@ def afficher_reponse(r: client.Reponse, derniere: bool) -> None:
                     f'<span class="pastille">confidence {r.score:.0%}</span>'
                     f'<span class="pastille">priority {r.priorite}</span>', unsafe_allow_html=True)
     if r.corps.get("reformulation"):
-        st.info(r.corps["reformulation"], icon="💡")
+        st.info(r.corps["reformulation"], icon=":material/lightbulb:")
     if r.article:
         st.markdown(f"**{r.article['titre']}** · <small>article {r.article['id']}</small>", unsafe_allow_html=True)
         st.markdown('<div class="bloc-etapes">', unsafe_allow_html=True)
@@ -115,21 +118,23 @@ def afficher_reponse(r: client.Reponse, derniere: bool) -> None:
         st.caption(f"Ask for a technician if: {r.article['escalade_si']}")
     semblable = r.corps.get("ticket_semblable")
     if semblable:
-        with st.expander(f"📎 A similar past ticket was solved ({semblable['similarite']:.0%} similar)"):
+        with st.expander(f"A similar past ticket was solved ({semblable['similarite']:.0%} similar)",
+                         icon=":material/history:"):
             st.caption(f"{semblable['id']} · {semblable['source']}")
             st.markdown(f"> {semblable['text']}")
             st.markdown(f"**How it was solved:** {semblable['resolution']}")
     if r.ticket:
         st.success(f"Ticket **{r.ticket['id']}** created and sent to the **{r.ticket['groupe']}** team "
-                   f"(status: {client.STATUTS[r.ticket['statut']]}).", icon="🎫")
+                   f"(status: {client.STATUTS[r.ticket['statut']]}).", icon=":material/confirmation_number:")
     cle = f"{r.conversation_id}-{r.tour}"
     if cle in st.session_state.get("avis", {}):
         st.caption("Thanks for your feedback!")
     else:
-        haut, bas, _ = st.columns([1, 1, 8])
-        for colonne, utile, icone in [(haut, True, "👍"), (bas, False, "👎")]:
-            colonne.button(icone, key=f"avis-{cle}-{'haut' if utile else 'bas'}", help="Was this answer useful?",
-                           on_click=noter, args=(r, utile))
+        haut, bas, _ = st.columns([2, 2, 5])
+        for colonne, utile, texte, icone in [(haut, True, "Useful", ":material/thumb_up:"),
+                                             (bas, False, "Not useful", ":material/thumb_down:")]:
+            colonne.button(texte, icon=icone, key=f"avis-{cle}-{'haut' if utile else 'bas'}",
+                           help="Was this answer useful?", on_click=noter, args=(r, utile))
 
 
 def boutons(r: client.Reponse) -> None:
@@ -138,28 +143,32 @@ def boutons(r: client.Reponse) -> None:
         st.caption("What kind of problem is it?")
         colonnes = st.columns(4)
         for i, categorie in enumerate(r.categories):
-            colonnes[i % 4].button(libelle(categorie), key=f"cat-{categorie}", use_container_width=True,
+            colonnes[i % 4].button(libelle(categorie), icon=ICONES[categorie], key=f"cat-{categorie}",
+                                   use_container_width=True,
                                    on_click=envoyer, args=("categorie", f"It is about: {client.VERDICTS[categorie]}"),
                                    kwargs={"categorie": categorie})
-    actions = [("confirmer_ticket", "🎫 Yes, create the ticket", "Yes, please create the ticket.", "primary"),
-               ("refuser_ticket", "Not now", "No ticket for now.", "secondary"),
-               ("resolu", "✅ Solved", "It's solved, thanks!", "primary"),
-               ("pas_resolu", "❌ Not solved", "It's still not working.", "secondary"),
-               ("demander_ticket", "🙋 Ask for a technician", "I'd like a technician.", "secondary")]
+    actions = [("confirmer_ticket", "Yes, create the ticket", ":material/confirmation_number:",
+                "Yes, please create the ticket.", "primary"),
+               ("refuser_ticket", "Not now", ":material/schedule:", "No ticket for now.", "secondary"),
+               ("resolu", "Solved", ":material/check_circle:", "It's solved, thanks!", "primary"),
+               ("pas_resolu", "Not solved", ":material/cancel:", "It's still not working.", "secondary"),
+               ("demander_ticket", "Ask for a technician", ":material/contact_support:", "I'd like a technician.",
+                "secondary")]
     visibles = [a for a in actions if a[0] in r.choix]
     if visibles:
-        for colonne, (action, texte, dit, genre) in zip(st.columns(len(visibles)), visibles, strict=True):
-            colonne.button(texte, key=action, type=genre, use_container_width=True, on_click=envoyer,
+        for colonne, (action, texte, icone, dit, genre) in zip(st.columns(len(visibles)), visibles, strict=True):
+            colonne.button(texte, icon=icone, key=action, type=genre, use_container_width=True, on_click=envoyer,
                            args=(action, dit))
 
 
 with st.sidebar:
-    st.title("🛠️ IT Support Agent")
+    st.title(f"{AGENT} IT Support Agent")
     if etat.ok:
         st.caption(f"API ready: {etat.message}")
     else:
         st.error(etat.message)
-    st.button("➕ New conversation", key="nouvelle", use_container_width=True, on_click=nouvelle_conversation)
+    st.button("New conversation", icon=":material/add:", key="nouvelle", use_container_width=True,
+              on_click=nouvelle_conversation)
     if st.session_state.get("conv_id"):
         st.caption(f"Conversation {st.session_state['conv_id']}")
     st.markdown("**How it works**\n\n1. Describe your problem.\n2. Try the suggested steps.\n"
@@ -167,19 +176,20 @@ with st.sidebar:
                 "when you ask for a technician, or for a critical case, and always after you confirm.")
 
 onglet_chat, onglet_suivi, onglet_stats, onglet_lot = st.tabs(
-    ["💬 Chat", "🎫 Track a ticket", "📊 Statistics", "📄 A file of tickets"])
+    [":material/chat: Chat", ":material/confirmation_number: Track a ticket", ":material/bar_chart: Statistics",
+     ":material/description: A file of tickets"])
 
 with onglet_chat:
     fil = st.session_state["fil"]
     if not fil:
-        with st.chat_message("assistant", avatar="🛠️"):
+        with st.chat_message("assistant", avatar=AGENT):
             st.markdown("Hello! Describe your IT problem in English, and I will help you solve it step by step.")
     for i, entree in enumerate(fil):
         if entree["role"] == "user":
             with st.chat_message("user"):
                 st.markdown(entree["texte"])
         else:
-            with st.chat_message("assistant", avatar="🛠️"):
+            with st.chat_message("assistant", avatar=AGENT):
                 afficher_reponse(entree["reponse"], derniere=i == len(fil) - 1)
     derniere = derniere_reponse()
     if derniere is not None:
@@ -236,7 +246,9 @@ with onglet_stats:
                  help="Finished conversations solved by the agent alone")
         b.metric("Conversations", s["conversations"], help=f"{s['en_cours']} still open")
         c.metric("Tickets", s["avec_ticket"])
-        d.metric("Useful answers", f"👍 {s['avis_utiles']} · 👎 {s['avis_pas_utiles']}")
+        avis = s["avis_utiles"] + s["avis_pas_utiles"]
+        d.metric("Useful answers", f"{s['avis_utiles']} of {avis}" if avis else "—",
+                 help=f"{s['avis_pas_utiles']} answer(s) marked not useful")
         if s["categories"]:
             st.markdown("**Most frequent categories**")
             frequentes = pd.DataFrame({"category": [client.VERDICTS[k] for k in s["categories"]],

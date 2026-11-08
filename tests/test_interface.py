@@ -118,3 +118,15 @@ def test_api_injoignable(monkeypatch):
                         lambda: httpx.Client(base_url="http://127.0.0.1:9", timeout=1))
     page = AppTest.from_file(PAGE, default_timeout=30).run()
     assert page.sidebar.error[0].value == client.INJOIGNABLE
+
+
+def test_icones_material_et_aucun_emoji(page):
+    """TP5.1 : la page utilise les icônes Material de Streamlit, jamais des emojis."""
+    import re
+
+    emoji = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F]")
+    for fichier in ["ui/app.py", "ui/client.py"]:
+        assert not emoji.search((RACINE / fichier).read_text(encoding="utf-8")), fichier
+    page = ecrire(page, IMPRIMANTE)
+    assert page.button(key="resolu").proto.icon == ":material/check_circle:"
+    assert page.chat_message[-1].avatar == ":material/support_agent:"

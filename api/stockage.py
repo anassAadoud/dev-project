@@ -1,6 +1,6 @@
 """Le stockage de l'agent (TP5.1) : des fichiers JSON Lines, hors de Git, une ligne par version.
 
-Tickets, conversations et avis 👍/👎 sont rangés dans le même dossier : celui du fichier
+Tickets, conversations et avis (utile ou pas) sont rangés dans le même dossier : celui du fichier
 SUPPORT_TICKETS si la variable est définie (les tests la redirigent vers un dossier temporaire),
 sinon tickets/ à la racine du dépôt. Un objet modifié est réécrit à la fin du fichier : la
 dernière ligne qui porte son identifiant est sa version actuelle, et les précédentes font son

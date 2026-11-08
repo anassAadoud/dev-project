@@ -166,7 +166,7 @@ Données d'entraînement fictives et publiques (licence non commerciale). Les in
 
 `ui/app.py → ui/client.py → HTTP → api/main.py → api/model.py → src/predict.py + src/kb.py → models/ + data/`
 
-Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST /tickets` (201), `GET /tickets/{id}` (404 si absent). **Ajoutées au TP5.1** : `POST /chat` (la conversation), `GET /tickets`, `PATCH /tickets/{id}` (suivi du statut), `POST /feedback` (👍/👎), `GET /stats`. La politique de conversation vit dans `api/conversation.py`.
+Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST /tickets` (201), `GET /tickets/{id}` (404 si absent). **Ajoutées au TP5.1** : `POST /chat` (la conversation), `GET /tickets`, `PATCH /tickets/{id}` (suivi du statut), `POST /feedback` (avis utile ou pas), `GET /stats`. La politique de conversation vit dans `api/conversation.py`.
 
 ## Historique des changements
 

@@ -1,4 +1,4 @@
-"""Le suivi de l'agent (TP5.1) : les avis 👍/👎 et les chiffres de la page de statistiques.
+"""Le suivi de l'agent (TP5.1) : les avis (utile ou pas) et les chiffres de la page de statistiques.
 
 Le chiffre principal est le taux de résolution sans ticket : parmi les conversations
 terminées, la part que l'agent a réglée seul. Une conversation en cours ne compte pas

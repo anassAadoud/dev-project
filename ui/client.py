@@ -4,7 +4,7 @@ L'interface n'importe jamais predict() ni le fichier .joblib : elle envoie des r
 l'API du TP3, corrigée au TP4, et traduit chaque réponse en message pour l'utilisateur.
 Les messages sont en anglais (l'application l'est côté utilisateur) ; le code reste en français.
 
-TP5.1 : la conversation (/chat), le suivi des tickets, les avis 👍/👎 et les statistiques.
+TP5.1 : la conversation (/chat), le suivi des tickets, les avis (utile ou pas) et les statistiques.
 L'API renvoie un code par réponse de l'agent ; ce module le traduit (REPLIQUES), comme le motif.
 """
 import os
@@ -196,7 +196,7 @@ def discuter(session: httpx.Client, action: str = "message", conversation_id: st
 
 
 def donner_avis(session: httpx.Client, conversation_id: str, tour: int, utile: bool) -> Reponse:
-    """POST /feedback : 👍 ou 👎 sur une réponse de l'agent."""
+    """POST /feedback : la réponse de l'agent était-elle utile ?"""
     try:
         r = session.post("/feedback", json={"conversation_id": conversation_id, "tour": tour, "utile": utile})
     except httpx.TransportError:

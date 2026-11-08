@@ -17,7 +17,7 @@
 | Ticket : texte, catégorie, article | Ticket pré-rempli : **résumé**, catégorie, priorité, **articles essayés et étapes cochées**, raison | Le technicien ne repose pas les questions déjà posées |
 | 21 articles (3 par catégorie) | **42 articles** (6 par catégorie) | Webcam, scanner, double authentification… manquaient (3 des 8 tickets inutiles) |
 | Statut figé « ouvert » | Suivi : ouvert, en cours, résolu, fermé, avec historique (`PATCH /tickets/{id}`) | L'utilisateur suit son ticket, le technicien le fait avancer |
-| — | Avis 👍/👎 par réponse (`POST /feedback`), statistiques (`GET /stats`) | Mesurer l'agent en usage : taux de résolution sans ticket, catégories fréquentes |
+| — | Avis « Useful » / « Not useful » par réponse (`POST /feedback`), statistiques (`GET /stats`) | Mesurer l'agent en usage : taux de résolution sans ticket, catégories fréquentes |
 | — | Ticket passé le plus semblable et ce qui l'a réglé | Réutiliser les résolutions des techniciens |
 | Pas de LLM | Reformulation par Ollama **en option**, désactivée par défaut | Une réponse plus naturelle, sans rendre l'agent dépendant d'un LLM |
 
@@ -83,13 +83,13 @@ Les 3 écarts de la colonne du milieu (webcam, application d'authentification, s
 ## 4. Le chatbot
 
 - **Conversation** : `st.chat_message` et `st.chat_input`, fil gardé dans `st.session_state`, et état complet gardé par l'API (`tickets/conversations.jsonl`) : une conversation survit au redémarrage de l'API (testé). Les boutons sont ceux que l'API autorise (champ `choix`), en rappels `on_click`.
-- **Étapes cochables**, boutons « ✅ Solved » / « ❌ Not solved » : les étapes cochées passent dans le ticket.
+- **Étapes cochables**, boutons « Solved » / « Not solved » : les étapes cochées passent dans le ticket.
 - **Base de connaissances** : 42 articles, 6 par catégorie (testé : au moins 5, identifiants uniques, au moins 3 étapes).
 - **Ticket passé le plus semblable** (`src/historique.py`) : d'abord les tickets de l'agent qu'un technicien a résolus, avec leur résolution, puis l'historique Tobi-Bueck s'il est construit (`python src/historique.py --reel` : 8 452 tickets passés avec la réponse du support, dans `data/historique.csv`, hors Git). Mesure sur les 30 messages : 5 tickets semblables au seuil 0,25, 2 au seuil retenu de 0,30, 68 ms par recherche. Les réponses de Tobi-Bueck sont souvent génériques (« please provide more details… ») et les tickets proches parlent parfois d'autre chose (« billing access denied » pour un dossier partagé) : le seuil a été relevé à 0,30, et la source la plus utile reste les résolutions des techniciens de l'agent.
 - **Suivi d'un ticket** (onglet « Track a ticket ») : statut, équipe, résumé, articles déjà essayés, historique ; un formulaire « Technician » fait avancer le statut et saisit la résolution, qui devient un ticket passé semblable pour les incidents suivants.
-- **Avis 👍/👎** sur chaque réponse de l'agent, enregistrés avec le code de la réponse (`tickets/feedback.jsonl`).
+- **Avis « Useful » / « Not useful »** sur chaque réponse de l'agent, enregistrés avec le code de la réponse (`tickets/feedback.jsonl`).
 - **Statistiques** (onglet « Statistics ») : taux de résolution sans ticket (conversations résolues seules, divisées par les conversations terminées), conversations, tickets, avis, et les catégories fréquentes en barres horizontales (une seule série, une seule teinte, avec le tableau des chiffres).
-- **Design** : barre latérale (état de l'API, nouvelle conversation, mode d'emploi), icônes par catégorie, pastilles de confiance et de priorité, étapes encadrées.
+- **Design** : barre latérale (état de l'API, nouvelle conversation, mode d'emploi), icônes Material de Streamlit (aucun emoji) pour l'agent, les onglets, les boutons et chaque catégorie, pastilles de confiance et de priorité, étapes encadrées.
 - **LLM en option** (`api/llm.py`) : si `SUPPORT_LLM=ollama`, l'API demande à Ollama de reformuler l'article trouvé, sans rien ajouter. Désactivé par défaut (`/health` affiche `"llm": "off"`). Toute erreur (Ollama absent, lent, réponse vide) rend `None`, et la page affiche l'article seul. Les tests simulent la réponse d'Ollama : aucun ne l'appelle (un test échoue si l'option désactivée tente un appel).
 
 Nouvelles routes : `POST /chat`, `GET /tickets`, `PATCH /tickets/{id}`, `POST /feedback`, `GET /stats`. Les tickets, conversations et avis sont des fichiers JSON Lines dans le dossier de `SUPPORT_TICKETS` (`api/stockage.py`) : une modification ajoute une version, la dernière fait foi.
@@ -102,7 +102,7 @@ Nouvelles routes : `POST /chat`, `GET /tickets`, `PATCH /tickets/{id}`, `POST /f
 
 | Contrôle | Obtenu |
 | --- | --- |
-| `python -m pytest -q` | 246 passed, 1 xfailed, 1 failed (l'auteur unique, comme au TP1) : 128 tests de plus qu'au TP5 |
+| `python -m pytest -q` | 247 passed, 1 xfailed, 1 failed (l'auteur unique, comme au TP1) : 129 tests de plus qu'au TP5 |
 | Couverture de `api/` | 99 % (592 instructions, 3 non couvertes) ; seuil de la CI : 95 % |
 | `ruff check .` ; `mypy api` | All checks passed! ; Success: no issues found in 9 source files |
 | API réelle (port 8010) et page (port 8511) | `/health` : 42 articles, `"llm": "off"` ; la page répond 200 |
