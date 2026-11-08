@@ -5,7 +5,7 @@ Chaque règle de la fiche a son test ; l'ordre des règles est vérifié par le 
 """
 import pytest
 
-from api.model import SEUIL_ABSTENTION, SEUIL_VOCABULAIRE, decider
+from api.model import SEUIL_ABSTENTION, SEUIL_VOCABULAIRE, decider, decider_tp51
 
 ARTICLE = {"id": "KB-NET-01", "titre": "VPN", "etapes": ["a", "b", "c"], "escalade_si": "the VPN still drops",
            "similarite": 0.4}
@@ -49,3 +49,28 @@ def test_sinon_la_solution_est_proposee():
 def test_une_priorite_basse_n_empeche_jamais_l_abstention(priorite):
     """La priorité ne sert que dans un sens : un incident incertain va au tri, quelle que soit sa priorité."""
     assert decider(prediction(label="INDETERMINE", score=0.1, priorite=priorite), ARTICLE)[0] == "escalade"
+
+
+# --- TP5.1 : la décision de /assist suit la politique de la conversation ---
+
+def test_tp51_mots_inconnus_et_confiance_basse_vont_au_tri():
+    assert decider_tp51(prediction(label="INDETERMINE", connus=0.1), None)[:2] == ("escalade", "mots_inconnus")
+    assert decider_tp51(prediction(label="INDETERMINE", score=0.3), None)[:2] == ("escalade", "confiance_basse")
+
+
+@pytest.mark.parametrize("label", ["securite", "panne_service"])
+def test_tp51_cas_critique_escalade_meme_avec_un_article(label):
+    assert decider_tp51(prediction(label=label), ARTICLE)[:2] == ("escalade", "critique")
+
+
+def test_tp51_sans_article_escalade():
+    assert decider_tp51(prediction(), None)[:2] == ("escalade", "sans_article")
+
+
+def test_tp51_la_priorite_haute_ne_suffit_plus():
+    assert decider_tp51(prediction(priorite="high"), ARTICLE)[:2] == ("solution", "solution")
+
+
+def test_tp51_un_article_always_propose_d_abord_les_etapes():
+    article = {**ARTICLE, "escalade_si": "always: the billing team"}
+    assert decider_tp51(prediction(label="facturation"), article)[:2] == ("solution", "solution")

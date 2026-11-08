@@ -37,6 +37,7 @@ MOTIFS = {
     "article_escalade": "This kind of incident is always handled by a technician. "
                         "You can try the steps below while you wait.",
     "solution": "Try these steps, then tell us if the problem is solved.",
+    "critique": "This looks critical: a technician will take over. You can try the steps below while you wait.",
 }
 # Ce que l'agent dit à chaque code de /chat (TP5.1).
 REPLIQUES = {

@@ -12,19 +12,19 @@
     "reseau",
     "securite"
   ],
-  "f1_macro": 0.9244,
-  "accuracy": 0.9255,
+  "f1_macro": 0.9075,
+  "accuracy": 0.9068,
   "rappel_par_classe": {
-    "securite": 1.0,
-    "reseau": 0.9565,
+    "securite": 0.9565,
+    "reseau": 0.913,
     "materiel": 0.9565,
-    "compte_acces": 1.0,
-    "facturation": 0.913,
-    "logiciel": 0.7391,
-    "panne_service": 0.913
+    "compte_acces": 0.913,
+    "facturation": 0.8261,
+    "logiciel": 0.913,
+    "panne_service": 0.8696
   },
-  "priorite_f1_macro": 1.0,
-  "priorite_rappel_high": 1.0,
+  "priorite_f1_macro": 0.9302,
+  "priorite_rappel_high": 0.85,
   "seuil_f1": 0.85,
   "seuil_f1_cours": 0.85
 }

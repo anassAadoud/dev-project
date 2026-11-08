@@ -14,7 +14,9 @@ catégorie est retenue. Les mots inconnus (autre langue, charabia) vont toujours
 
 TP5.1 : la conversation (api/conversation.py) utilise ce classifier comme ses outils : le
 modèle, la base (articles déjà essayés exclus) et la création du ticket. /assist et ses règles
-restent ceux du TP4 : ils servent au tri d'un fichier de tickets.
+suivent la même politique que la conversation (decider_tp51) : un fichier de tickets ne doit pas
+annoncer un technicien pour un incident que l'agent règle dans la conversation. Les règles du TP4
+(decider) restent, pour rejouer la mesure « avant » de src/bilan_tickets.py.
 """
 import sys
 import uuid
@@ -23,7 +25,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from api import conversation, llm, stockage, tickets
-from api.conversation import Conversation
+from api.conversation import CRITIQUES, Conversation
 from api.schemas import Action, Categorie, Decision, Label, Motif, Priorite, Source
 
 RACINE = Path(__file__).resolve().parents[1]
@@ -119,7 +121,7 @@ class SupportClassifier:
         """Classe l'incident, cherche un article, puis applique les règles d'escalade."""
         prediction = self.predict(text)
         article = None if prediction["label"] == "INDETERMINE" else _chercher(text, prediction["label"])
-        decision, motif, raison = decider(prediction, article)
+        decision, motif, raison = decider_tp51(prediction, article)
         return {**prediction, "decision": decision, "motif": motif, "raison": raison,
                 "groupe": GROUPES[prediction["label"]], "article": article}
 
@@ -183,7 +185,8 @@ def verifier_etiquettes(nom: str, classes: Iterable[object], connues: set[str]) 
 
 
 def decider(prediction: Prediction, article: dict | None) -> tuple[Decision, Motif, str]:
-    """Les règles de la fiche cas1, dans l'ordre : la première qui s'applique décide.
+    """Les règles de la fiche cas1 (TP4), dans l'ordre : la première qui s'applique décide.
+    Depuis le TP5.1, /assist utilise decider_tp51 ; celles-ci rejouent la page du TP5 (bilan des tickets).
     Dans le doute, on escalade : une escalade inutile coûte moins qu'une escalade manquée.
     Renvoie la décision, son motif (un code, que l'interface traduit pour l'utilisateur, TP5)
     et sa raison en clair (pour le technicien et le ticket)."""
@@ -199,6 +202,20 @@ def decider(prediction: Prediction, article: dict | None) -> tuple[Decision, Mot
         return "escalade", "sans_article", "aucun article de la base ne correspond à cet incident"
     if article["escalade_si"].lower().startswith("always"):
         return "escalade", "article_escalade", f"l'article {article['id']} demande toujours un technicien"
+    return "solution", "solution", f"article {article['id']} proposé : l'utilisateur essaie, puis dit si c'est résolu"
+
+
+def decider_tp51(prediction: Prediction, article: dict | None) -> tuple[Decision, Motif, str]:
+    """La décision de /assist depuis le TP5.1, alignée sur la conversation : un technicien seulement
+    quand l'agent ne peut pas répondre seul (catégorie incertaine, aucun article) ou pour un cas
+    critique. La priorité haute et les articles « always » ne suffisent plus : dans la conversation,
+    l'agent propose d'abord les étapes. La priorité reste dans le ticket."""
+    if prediction["label"] == "INDETERMINE":
+        return decider(prediction, article)  # mots inconnus ou confiance basse : le tri N1, comme au TP4
+    if prediction["label"] in CRITIQUES:
+        return "escalade", "critique", "cas critique (sécurité ou panne générale) : un technicien prend l'incident"
+    if article is None:
+        return "escalade", "sans_article", "aucun article de la base ne correspond à cet incident"
     return "solution", "solution", f"article {article['id']} proposé : l'utilisateur essaie, puis dit si c'est résolu"
 
 

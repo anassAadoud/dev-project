@@ -39,12 +39,16 @@ def ticket_attendu(ligne: dict[str, str]) -> int:
 
 
 def avant(ligne: dict[str, str], clf) -> tuple[int, str]:
-    """La page du TP5 : une escalade de /assist propose le ticket ; « No » le crée aussitôt."""
-    aide = clf.assist(ligne["text"])
-    if aide["decision"] == "escalade":
-        return 1, aide["motif"]
+    """La page du TP5 : une escalade selon les règles du TP4 (decider) propose le ticket ; « No » le crée aussitôt."""
+    from api.model import decider
+
+    prediction = clf.predict(ligne["text"])
+    article = None if prediction["label"] == "INDETERMINE" else clf.chercher(ligne["text"], prediction["label"])
+    decision, motif, _ = decider(prediction, article)
+    if decision == "escalade":
+        return 1, motif
     ok = set(ligne["articles_ok"].split()) if ligne["articles_ok"] else set()
-    if ligne["scenario"] == "resolu" and aide["article"] and aide["article"]["id"] in ok:
+    if ligne["scenario"] == "resolu" and article and article["id"] in ok:
         return 0, "résolu au premier article"
     return 1, "« No » au premier article : ticket créé aussitôt"
 

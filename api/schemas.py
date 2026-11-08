@@ -10,7 +10,8 @@ Label = Literal["securite", "reseau", "materiel", "compte_acces", "facturation",
 Priorite = Literal["high", "medium", "low"]
 Decision = Literal["solution", "escalade"]
 # TP5 : le motif de la décision, un code que l'interface traduit pour l'utilisateur.
-Motif = Literal["mots_inconnus", "confiance_basse", "priorite_haute", "sans_article", "article_escalade", "solution"]
+Motif = Literal["mots_inconnus", "confiance_basse", "priorite_haute", "sans_article", "article_escalade", "solution",
+                "critique"]
 # TP5.1 : la conversation. L'action de l'utilisateur, la phase où en est l'agent, et le code de sa
 # réponse, que l'interface traduit en anglais (comme le motif du TP5).
 Action = Literal["message", "resolu", "pas_resolu", "categorie", "demander_ticket", "confirmer_ticket",

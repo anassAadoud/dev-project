@@ -8,8 +8,9 @@ facturation, logiciel, panne_service) :
     un retournement (« but the real problem is that »), puis le vrai problème, celui
     qui donne l'étiquette. Comme les avis mitigés de sentiment-app, ils sont volontaires :
     un sac de mots y voit deux symptômes de même poids et ne sait pas lequel conclut.
-Chaque incident a aussi une priorité (low, medium, high), qui suit les mots
-d'urgence ou de gêne de la phrase, pour entraîner le second modèle.
+Chaque incident a aussi une priorité (low, medium, high), pour entraîner le second modèle :
+une urgence explicite donne high, un calme explicite low, et sans indice la catégorie
+décide (panne ou sécurité : high ; le reste : medium). Règle revue au TP5.1.
 
 TP5.1 : les symptômes viennent aussi de la base de connaissances (titre et symptômes de chaque
 article). Au TP5, 36 symptômes seulement donnaient un vocabulaire de 661 mots, et le modèle
@@ -27,7 +28,7 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parents[1]
 SORTIE = RACINE / "data" / "demo_incidents.csv"
 BASE = RACINE / "data" / "base_connaissances.csv"
-GRAINE = 42
+GRAINE = 2  # TP5.1 : choisie sur les 50 messages de développement parmi 8 graines (docs/semaine5.1.md)
 CATEGORIES = ["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
 NETS, MELES = 100, 15
 
@@ -95,10 +96,22 @@ SYMPTOMES = {
 RETOURNEMENTS = ["but the real problem is that", "that was fixed, however now", "then it got worse and",
                  "yet what really blocks me is that", "and now"]
 
-# Priorité : les mots d'urgence ou de gêne de la phrase donnent l'étiquette.
-URGENT = ["urgent, the whole team is blocked", "nobody can work, please fix it now", "critical for today's deadline"]
-MOYEN = ["it happens every day", "please have a look today", "it slows down my work"]
-FAIBLE = ["no rush, it is just annoying", "only sometimes, not blocking", "when you have time"]
+# Priorité (revue au TP5.1) : une urgence explicite donne high, un calme explicite donne low (même
+# s'il contient le mot « urgent » : « not urgent »), et sans indice, la catégorie décide : une panne ou
+# un incident de sécurité est high, le reste medium. Au TP5, la priorité ne suivait que les mots de la
+# fin de phrase : « not urgent » donnait high (27 messages sur 31 dans le fichier de test du binôme).
+URGENT = ["urgent, the whole team is blocked", "nobody can work, please fix it now", "critical for today's deadline",
+          "this is urgent, please fix it today", "it blocks the whole team", "I need it fixed before my meeting",
+          "please fix it right away", "top priority for me", "we are stuck until it is fixed",
+          "as soon as possible please"]
+FAIBLE = ["no rush, it is just annoying", "only sometimes, not blocking", "when you have time", "not urgent",
+          "it is not urgent at all", "low priority, it can be done later", "no need to hurry", "take your time",
+          "not a big deal", "no stress, I can work around it", "not critical at all",
+          "it can be looked at later this month"]
+NEUTRE = ["", "", "it happens every day", "please have a look today", "it slows down my work", "since this morning",
+          "since yesterday", "after the update"]
+PRIORITE_SANS_INDICE = {"securite": "high", "panne_service": "high"}  # les autres catégories : medium
+TONS = ["urgent", "calme", "neutre", "neutre"]
 DEBUTS = ["", "", "Hello, ", "Hi team, ", "Good morning, ", "Please help: ", "Could you investigate? ",
           "IT support request: "]
 
@@ -122,11 +135,19 @@ def tous_les_symptomes() -> dict[str, list[str]]:
     return {c: list(dict.fromkeys([*SYMPTOMES[c], *base[c]])) for c in CATEGORIES}
 
 
-def phrase(symptome: str, contexte: str, priorite: str, rng: random.Random) -> str:
-    suite = rng.choice({"high": URGENT, "medium": MOYEN, "low": FAIBLE}[priorite])
+def priorite_du_ton(ton: str, categorie: str) -> str:
+    if ton == "urgent":
+        return "high"
+    if ton == "calme":
+        return "low"
+    return PRIORITE_SANS_INDICE.get(categorie, "medium")
+
+
+def phrase(symptome: str, contexte: str, ton: str, rng: random.Random) -> str:
+    suite = rng.choice({"urgent": URGENT, "calme": FAIBLE, "neutre": NEUTRE}[ton])
     debut = rng.choice(DEBUTS)
     corps = f"{contexte}, {symptome}" if contexte else symptome
-    texte = f"{debut}{corps}, {suite}."
+    texte = f"{debut}{corps}, {suite}." if suite else f"{debut}{corps}."
     return texte[0].upper() + texte[1:]
 
 
@@ -135,13 +156,14 @@ def incidents(categorie: str, rng: random.Random, symptomes: dict[str, list[str]
     autres = [c for c in CATEGORIES if c != categorie]
     propres = symptomes[categorie]
     for i in range(NETS + MELES):
-        priorite = ["high", "medium", "low"][i % 3]
+        ton = TONS[i % len(TONS)]
+        priorite = priorite_du_ton(ton, categorie)
         contexte = ""
         if i >= NETS:  # incident mêlé : d'abord le symptôme d'une autre catégorie, puis le retournement
             contexte = f"{rng.choice(symptomes[rng.choice(autres)])}, {rng.choice(RETOURNEMENTS)}"
         # Chaque symptôme sert au moins une fois, puis au hasard.
         symptome = propres[i] if i < min(len(propres), NETS) else rng.choice(propres)
-        lignes.append((phrase(symptome, contexte, priorite, rng), categorie, priorite))
+        lignes.append((phrase(symptome, contexte, ton, rng), categorie, priorite))
     return lignes
 
 
