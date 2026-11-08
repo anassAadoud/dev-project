@@ -1115,4 +1115,6 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 
 **Qualité des réponses** (après la copie des icônes) : jeu d'évaluation, jeu de démonstration enrichi, second avis de la base, garde-fou sans mots vides (T5.1-e). Graphe refait : 847 nœuds, 1 625 arêtes, 39 groupes. Empreinte de `sentiment-app/` : 58 813 fichiers, aucune différence. L'étiquette `tp5.1` est déplacée sur le dernier commit et la copie `Agent_support_info_TP5.1` refaite (`robocopy /MIR`).
 
+**Priorité et décision du fichier** (T5.1-f) : graphe refait, 856 nœuds, 1 655 arêtes, 43 groupes ; empreinte de `sentiment-app/` : 58 813 fichiers, aucune différence ; étiquette `tp5.1` déplacée sur le dernier commit et copie refaite (`robocopy /MIR`).
+
 **TP6** : pas encore fait. Il partira de cette version.
