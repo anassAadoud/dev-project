@@ -16,6 +16,8 @@ models/*
 data/*
 !data/.gitkeep
 !data/exemples_incidents.csv
+# TP3 : la base de connaissances est écrite à la main, elle se versionne
+!data/base_connaissances.csv
 mlruns/
 mlflow.db
 
