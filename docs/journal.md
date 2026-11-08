@@ -23,6 +23,8 @@ Ce journal est adapté de celui de `sentiment-app` : même structure (préparati
 
 **TP5 : l'interface Streamlit.** `ui/client.py` traduit chaque réponse de l'API. `ui/app.py` permet de décrire un incident, affiche des étapes cochables et la question « Is it solved? » (oui/non), puis crée le ticket ; un second onglet traite un fichier CSV de tickets. Le TP comprend les tests du client et de la page (AppTest), `data/incidents_exemple.csv` et `docs/semaine5.md`.
 
+**TP5.1 : améliorer l'agent (entre le TP5 et le TP6).** Diagnostic des tickets sur 30 conversations (`src/bilan_tickets.py`), puis une politique de conversation testée (`api/conversation.py`, `POST /chat`) : jamais de ticket au premier message, une autre solution ou une question de précision, le ticket après deux tentatives, sur demande ou pour un cas critique, toujours confirmé, un seul par conversation. Base de 42 articles, page en conversation, suivi des tickets, avis 👍/👎, statistiques, ticket passé le plus proche, Ollama en option. `docs/semaine5.1.md`.
+
 **TP6 : packager l'application.** Le paquet `support_it` reçoit `predict.py` par `git mv`, et un fichier de compatibilité reste dans `src/`. L'API importe le paquet sans toucher `sys.path`. La commande `support` (`--version`, `predict`, `assist`, `serve`, `ui`) est ajoutée, ainsi que la variable `SUPPORT_MODELE`. `pyproject.toml` épingle scikit-learn ; la roue est construite puis installée hors du dépôt. Le TP se termine par `tests/test_packaging.py`, `CHANGELOG.md`, les étiquettes `tp6` et `v0.6.0`, et `docs/semaine6.md`.
 
 **À chaque fin de TP** : contrôles du guide avec les chiffres réellement obtenus, documentation, commit, étiquette `tpN`, mise à jour du graphe (`graphify-out/`, hors Git), copie `Agent_support_info_TPn`, comparaison de l'empreinte de `sentiment-app/`.
@@ -45,6 +47,8 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP3 | Vérifier la CI (T19) ; membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, essais T15 à T18 | Les deux |
 | TP4 | Membre B : `pip install -r requirements-dev.txt`, `pre-commit install`, ses dix incidents du jeu d'or ; vérifier la CI (T27) | Les deux |
 | TP5 | Essayer la page dans un navigateur (T29 à T33, `uvicorn api.main:app` puis `streamlit run ui/app.py`) ; vérifier la CI (T34) | Les deux |
+| TP5.1 | Essayer la conversation dans un navigateur : un incident résolu, deux « Not solved » puis le ticket, un cas critique, le suivi et les statistiques ; vérifier la CI | Les deux |
+| TP5.1 | Décider avec le binôme si un jeu public de plus (catégories faibles, messages courts) vaut la peine pour le modèle réel | Les deux |
 | Tous | Captures d'écran dans `docs/captures/` si l'enseignant les exige | Les deux |
 
 ## Écarts au guide et à la méthode
@@ -66,6 +70,9 @@ Actions que Claude Code ne fait pas seul (compte, mot de passe, membre B) :
 | TP4 | Les 20 incidents du jeu d'or sont écrits par le membre A seul | Le guide demande dix incidents par membre : le membre B doit compléter ou remplacer les siens |
 | TP5 | Contrôles T29 à T33 rejoués avec `AppTest` et le client, pas dans un navigateur | Pas de navigateur dans l'environnement de travail ; la page et l'API tournaient pour de bon |
 | TP5 | `/assist` reçoit un champ `motif`, les groupes d'escalade passent en anglais | Page en anglais : elle traduit un code, au lieu d'interpréter une phrase |
+| TP5.1 | Étape hors du guide : plus de copie fidèle de `sentiment-app` (design, routes et fonctionnalités en plus) | Consigne du TP5.1 ; l'architecture, les tests et la CI restent ceux du cours |
+| TP5.1 | Un LLM (Ollama) en option, désactivé par défaut | Consigne du TP5.1 ; aucun test ni aucune décision n'en dépend |
+| TP5.1 | `/assist` et ses règles (fiche `cas1`) gardés tels quels, à côté de `/chat` | Ils servent au tri d'un fichier de tickets, et à mesurer l'« avant » du bilan |
 
 ---
 
@@ -936,3 +943,113 @@ results.csv écrit (dossier temporaire)
 **Empreinte de `sentiment-app/`** : 58 813 fichiers avant, 58 813 après, **aucune différence**.
 
 **Étiquette** `tp5`, puis copie `Agent_support_info_TP5`. Après la vérification des tests depuis la copie, ses caches (`__pycache__/`, `.hypothesis/`) sont supprimés : la copie reste celle du commit `tp5`.
+
+---
+
+## TP5.1 : améliorer l'agent
+
+**Date** : 8 novembre 2026 · **Fait par** : membre A (avec Claude Code)
+
+**Ce qui a été fait.** D'abord le diagnostic : 30 conversations réalistes (`data/conversations_30.csv`, versionné) et un utilisateur simulé (`src/bilan_tickets.py`). Ensuite la politique de conversation, dans un module pur (`api/conversation.py`), servie par `POST /chat`, avec ses 49 tests. Puis la base passe de 21 à 42 articles. Côté interface, une page en conversation (`st.chat_message`) : étapes cochables, « Solved » / « Not solved », boutons de catégories, confirmation du ticket, 👍/👎, suivi d'un ticket, statistiques. L'API reçoit le stockage des conversations et des avis (`api/stockage.py`), le suivi du statut (`PATCH /tickets/{id}`), les statistiques (`api/suivi.py`), le ticket passé le plus proche (`src/historique.py`) et la reformulation Ollama en option (`api/llm.py`). Le TP comprend aussi `docs/semaine5.1.md`, la fiche du projet, le README et `.env.example`. Un commit par étape, chacun avec les tests verts (sauf l'auteur unique), ruff et mypy muets.
+
+**Décisions et raisons.**
+
+- **La politique dans l'API, pas dans la page** : comme les seuils du TP4, les règles du ticket ne doivent exister qu'à un endroit. La page affiche les boutons que l'API autorise (`choix`) et traduit un code (`REPLIQUES`), comme le `motif` du TP5.
+- **Un module pur, des outils injectés** : `avancer(conv, action, outils)` ne connaît ni le modèle, ni la base, ni les fichiers. Les règles se testent donc sans modèle, en CI, comme `decider()` au TP4.
+- **Une tentative = un article « pas résolu » ou une question sans résultat** : sans cette définition, une base qui ne sait rien ferait poser des questions sans fin, ou créerait un ticket sans aucune tentative.
+- **L'état gardé par l'API** (`tickets/conversations.jsonl`, la dernière version fait foi) : la règle « un seul ticket » ne dépend pas de ce que la page renvoie, et une conversation survit au redémarrage de l'API.
+- **`/assist` inchangé** : il trie toujours les fichiers de tickets, et il sert de mesure « avant » au bilan.
+- **Seuil du ticket semblable relevé à 0,30** : mesuré sur l'historique Tobi-Bueck, 0,25 montrait des tickets hors sujet.
+- **Pas de nouveau jeu de données** : le problème venait de la politique et de la base, pas du modèle (voir `docs/semaine5.1.md`, partie 5).
+
+**Problèmes rencontrés.**
+
+- **`AppTest` et `st.rerun()`** : après un `st.rerun()` lancé dans un clic, l'outil de test gardait des boutons de l'exécution précédente (« Not solved » visible pendant une question). Tous les boutons passent en rappels (`on_click`, `on_submit`), qui mettent l'état à jour avant de redessiner la page : plus aucun `st.rerun()`.
+- **Ports déjà pris** : une page Streamlit lancée par l'utilisateur occupait le port 8501, et le port 8000 répondait avec l'ancienne API (21 articles) au moment du premier essai. Nous n'avons pas touché à ces processus : l'essai réel s'est fait sur les ports 8010 (API) et 8511 (page), arrêtés ensuite.
+- **Guillemets en ligne de commande** : deux scripts de modification passés par un heredoc échouaient sur les guillemets ; ils ont été écrits dans un fichier temporaire, hors du dépôt.
+
+### T5.1-a · Le diagnostic
+
+```powershell
+python src/bilan_tickets.py
+```
+
+&nbsp;
+
+**Attendu** : la mesure de la page du TP5 sur 30 conversations, avec la cause de chaque ticket.
+
+**Obtenu** :
+
+```
+Avant (TP5) : 18 tickets sur 30 conversations (60%), dont 8 pour un incident que la base sait régler (20 incidents résolubles)
+Causes : résolu au premier article 12, confiance_basse 8, « No » au premier article : ticket créé aussitôt 5, priorite_haute 2, mots_inconnus 2, article_escalade 1
+```
+
+- [x] Conforme
+
+**Commentaire** :
+
+> Les 8 tickets inutiles : seuil d'abstention 4, garde-fou de vocabulaire 2, priorité haute 1, ticket créé au premier « No » 1. Trois d'entre eux n'avaient pas d'article dans la base (webcam, scanner, application d'authentification).
+
+### T5.1-b · La politique, puis la base
+
+**Obtenu** (même commande) :
+
+```
+politique seule, 21 articles :
+Après (TP5.1) : 13 tickets sur 30 conversations (43%), attendus 10 ; écarts à l'attendu : 3 ; 2.9 tours en moyenne
+42 articles :
+Après (TP5.1) : 10 tickets sur 30 conversations (33%), attendus 10 ; écarts à l'attendu : 0 ; 2.7 tours en moyenne
+Fins : résolu sans ticket 20, ticket 10
+```
+
+- [x] Conforme : aucun ticket pour un incident résolu, un ticket pour chaque cas non résolu, demandé ou critique
+
+### T5.1-c · Tests, qualité
+
+```powershell
+python -m pytest -q --cov=api --cov-fail-under=95 ; ruff check . ; mypy api
+```
+
+&nbsp;
+
+**Obtenu** :
+
+```
+Required test coverage of 95% reached. Total coverage: 99.49%
+FAILED tests/test_git_history.py::test_each_member_has_committed
+1 failed, 246 passed, 1 xfailed
+All checks passed! ; Success: no issues found in 9 source files
+```
+
+- [x] Conforme, à l'échec d'auteur du TP1 près (128 tests de plus qu'au TP5)
+
+### T5.1-d · L'agent qui tourne
+
+```powershell
+uvicorn api.main:app --port 8010
+$env:API_URL="http://127.0.0.1:8010"; streamlit run ui/app.py --server.headless true --server.port 8511
+```
+
+&nbsp;
+
+**Obtenu** :
+
+```
+page : 200 ; /health : {"status":"OK","model":"tfidf-linearsvc (TP2, models/support.joblib)","articles":42,"llm":"off"}
+« The webcam is not detected during video calls » : choisir_categorie ['materiel', 'reseau', 'securite'] > solution « Webcam, microphone or headset not detected » > resolu
+page (AppTest, API HTTP) « I clicked a link in a suspicious email and typed my password. » :
+  This looks critical. Do the steps below right away. I suggest sending it to a technician now: shall I create a ticket?
+  après « Yes » : Ticket TCK-AE375305 created and sent to the Security (SOC) team (status: Open).
+python src/historique.py --reel : 8452 tickets passés écrits dans data/historique.csv
+```
+
+- [x] Conforme ; un essai dans un navigateur reste à faire (« À faire par l'humain »)
+
+### Membre B, après le TP5.1
+
+À faire par le membre B : `git pull`, `python src/train.py`, `python -m pytest -q`, `python src/bilan_tickets.py`, puis une conversation dans son navigateur.
+
+### Fin du TP5.1 : graphe, empreinte, étiquette, copie
+
+À compléter à la fin du TP5.1.

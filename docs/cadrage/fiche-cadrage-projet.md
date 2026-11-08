@@ -102,6 +102,8 @@ TP 8 : Présenter un workflow Kubeflow ou Azure ML et discuter son intérêt par
 
 Un employé décrit un incident informatique en anglais ; l'application le classe, propose une solution pas à pas tirée de la base de connaissances, demande si le problème est résolu, et sinon (ou si le modèle doute, ou si c'est urgent) crée un ticket pré-rempli et l'escalade au bon groupe de techniciens.
 
+**Mis à jour au TP5.1** : l'agent converse. Il répond d'abord, propose une autre solution ou pose une question de précision quand ce n'est pas résolu ou quand le modèle doute, et ne propose le ticket pré-rempli qu'après deux tentatives sans succès, sur demande, ou pour un cas critique (sécurité, panne générale), toujours après confirmation, un seul par conversation.
+
 ## Utilisateur final
 
 Les employés d'une organisation qui rencontrent un incident (poste, réseau, compte, logiciel) ; les techniciens de niveau 1 et 2, qui reçoivent des tickets déjà qualifiés ; le responsable du support, qui maintient la base de connaissances et les règles d'escalade.
@@ -116,7 +118,7 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 | Proposer une solution pas à pas | RAG réduit à la recherche : similarité TF-IDF dans la base de connaissances, sans génération | `cas3-solutions-base-connaissances.md` |
 | Escalader ou non, vers quel groupe | Règles métier | `cas1-escalade-incidents.md` |
 
-**Pas de LLM ni d'Ollama dans les TP1 à TP6.**
+**Pas de LLM ni d'Ollama dans les TP1 à TP6.** **Mis à jour au TP5.1** : un LLM local (Ollama) est permis en option, désactivé par défaut, pour reformuler l'article trouvé ; aucune décision ni aucun test n'en dépend.
 
 ## Justification
 
@@ -128,7 +130,8 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 - **Étiquette** : la catégorie IT tirée des `tag_*`, première règle qui correspond (section 15.2), identifiants ASCII `securite`, `reseau`, `materiel`, `compte_acces`, `facturation`, `logiciel`, `panne_service` ; les 913 incidents sans catégorie sont écartés, il en reste 8 266 dans le notebook. **Mis à jour au TP2** : `src/train.py --reel` n'applique pas le filtre du notebook sur les queues rares (`MIN_PAR_QUEUE`, 252 tickets), qui ne fait pas partie des filtres retenus ; il garde donc **8 452** incidents étiquetés.
 - **Priorité** : la colonne `priority` (low / medium / high), pour un second modèle (section 9).
 - **Jeu de démonstration** : `src/make_demo.py` génère un jeu synthétique anglais avec les mêmes 7 catégories, pour la CI et les tests (rapide, sans réseau), comme le jeu de démonstration d'avis dans `sentiment-app`.
-- **Base de connaissances** : `data/base_connaissances.csv`, en anglais, au moins 3 articles par catégorie, rédigée par le binôme.
+- **Base de connaissances** : `data/base_connaissances.csv`, en anglais, au moins 3 articles par catégorie, rédigée par le binôme. **Mis à jour au TP5.1** : au moins 5 articles par catégorie (42 articles, 6 par catégorie).
+- **Tickets passés (TP5.1)** : les tickets de l'agent résolus par un technicien et, en option, la réponse (`answer`) des incidents Tobi-Bueck (`python src/historique.py --reel`, 8 452 tickets, hors Git).
 
 ## Métrique de succès
 
@@ -137,11 +140,14 @@ Le projet combine trois approches, une par décision, cadrées chacune dans une 
 | F1 macro, 7 catégories, Tobi-Bueck | 0,788 (LinearSVC calibré) ; naïf 0,072 | au moins 0,75 ; le 0,85 du cours n'est pas atteint sur données réelles, c'est documenté |
 | F1 macro, jeu de démonstration | à mesurer au TP2 | au moins 0,85 (seuil du cours) |
 | Les 2 pièges des 12 incidents (français, charabia) | `INDETERMINE` par le garde-fou de vocabulaire | `INDETERMINE` |
+| Tickets sur les 30 conversations du bilan (TP5.1) | 18 / 30 au TP5, dont 8 évitables | aucun ticket pour un incident que la base sait régler, un pour chacun des autres (mesuré : 10 / 30) |
 | F1 macro de la priorité | 0,646 ; rappel `high` 0,704 | mesuré et rapporté ; la priorité seule ne décide pas d'une non-escalade |
 
 ## Conséquence d'une erreur et validation humaine
 
 Une mauvaise catégorie propose une solution inadaptée : l'utilisateur répond « non résolu » et un ticket part vers un technicien. Une escalade manquée est l'erreur la plus coûteuse : dans le doute (confiance basse, mots inconnus, priorité haute), on escalade. Le technicien peut réaffecter le ticket et corriger la catégorie.
+
+**Mis à jour au TP5.1** : le doute ne crée plus de ticket d'emblée, il déclenche une question (boutons de catégories). L'escalade reste garantie : les cas critiques reçoivent la proposition de ticket dès le premier message, l'utilisateur peut demander un technicien à tout moment, et deux tentatives sans succès mènent au ticket.
 
 ## Risques éthiques ou de confidentialité
 
@@ -160,7 +166,7 @@ Données d'entraînement fictives et publiques (licence non commerciale). Les in
 
 `ui/app.py → ui/client.py → HTTP → api/main.py → api/model.py → src/predict.py + src/kb.py → models/ + data/`
 
-Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST /tickets` (201), `GET /tickets/{id}` (404 si absent).
+Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST /tickets` (201), `GET /tickets/{id}` (404 si absent). **Ajoutées au TP5.1** : `POST /chat` (la conversation), `GET /tickets`, `PATCH /tickets/{id}` (suivi du statut), `POST /feedback` (👍/👎), `GET /stats`. La politique de conversation vit dans `api/conversation.py`.
 
 ## Historique des changements
 
@@ -171,3 +177,4 @@ Routes prévues : `GET /`, `GET /health`, `POST /predict`, `POST /assist`, `POST
 | 2026-11-08 | TP3 | Base de connaissances écrite : 21 articles (3 par catégorie) ; seuil de similarité 0,10 ; routes `/assist` et `/tickets` en place ; la réponse du ticket passé n'est pas exposée |
 | 2026-11-08 | TP4 | `SEUIL_ABSTENTION` passe de 0,5 à 0,60 (courbe du seuil sur la démonstration et sur Tobi-Bueck) ; garde-fou de vocabulaire branché dans l'API ; `INDETERMINE` → groupe « Tri N1 » |
 | 2026-11-08 | TP5 | Page Streamlit en anglais ; `/assist` renvoie un `motif` ; groupes d'escalade renommés en anglais (Triage (L1) pour les incidents incertains) |
+| 2026-11-08 | TP5.1 | Politique des tickets : jamais au premier message, deux tentatives, confirmation, un seul par conversation (18 → 10 tickets sur 30 conversations) ; base de 42 articles ; conversation multi-tours, suivi, avis, statistiques, ticket passé le plus proche ; Ollama en option, désactivé par défaut ; aucun nouveau jeu de données |

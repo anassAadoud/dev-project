@@ -23,7 +23,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 RACINE = Path(__file__).resolve().parents[1]
 HISTORIQUE = RACINE / "data" / "historique.csv"
-SEUIL_SEMBLABLE = 0.25  # en dessous, le ticket passé parle d'autre chose
+SEUIL_SEMBLABLE = 0.30  # en dessous, le ticket passé parle d'autre chose (mesuré sur Tobi-Bueck : docs/semaine5.1.md)
 LONGUEUR_REPONSE = 600
 
 
