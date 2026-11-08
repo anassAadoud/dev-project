@@ -151,7 +151,10 @@ def phrase(symptome: str, contexte: str, ton: str, rng: random.Random) -> str:
     return texte[0].upper() + texte[1:]
 
 
-def incidents(categorie: str, rng: random.Random, symptomes: dict[str, list[str]]) -> list[tuple[str, str, str]]:
+def incidents(categorie: str, rng: random.Random, symptomes: dict[str, list[str]]) -> list[tuple[str, str, str, str]]:
+    """Les incidents d'une catégorie : (texte, catégorie, priorité, groupe). Le groupe est le symptôme
+    d'origine (TP5.2) : deux phrases du même symptôme ne doivent pas être l'une à l'entraînement et
+    l'autre au test, sinon le test mesure la mémoire du modèle (94 % des phrases de test au TP5.1)."""
     lignes = []
     autres = [c for c in CATEGORIES if c != categorie]
     propres = symptomes[categorie]
@@ -162,27 +165,34 @@ def incidents(categorie: str, rng: random.Random, symptomes: dict[str, list[str]
         if i >= NETS:  # incident mêlé : d'abord le symptôme d'une autre catégorie, puis le retournement
             contexte = f"{rng.choice(symptomes[rng.choice(autres)])}, {rng.choice(RETOURNEMENTS)}"
         # Chaque symptôme sert au moins une fois, puis au hasard.
-        symptome = propres[i] if i < min(len(propres), NETS) else rng.choice(propres)
-        lignes.append((phrase(symptome, contexte, ton, rng), categorie, priorite))
+        indice = i if i < min(len(propres), NETS) else rng.randrange(len(propres))
+        lignes.append((phrase(propres[indice], contexte, ton, rng), categorie, priorite, f"{categorie}:{indice}"))
+    return lignes
+
+
+def generer(graine: int = GRAINE) -> list[tuple[str, str, str, str]]:
+    """Le jeu complet pour une graine, mélangé (TP5.2 : l'évaluation sur plusieurs graines le réutilise)."""
+    rng = random.Random(graine)
+    symptomes = tous_les_symptomes()
+    lignes = [ligne for categorie in CATEGORIES for ligne in incidents(categorie, rng, symptomes)]
+    rng.shuffle(lignes)
     return lignes
 
 
 def main() -> int:
-    rng = random.Random(GRAINE)
-    symptomes = tous_les_symptomes()
-    lignes = [ligne for categorie in CATEGORIES for ligne in incidents(categorie, rng, symptomes)]
-    rng.shuffle(lignes)
+    lignes = generer(GRAINE)
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     with SORTIE.open("w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["text", "categorie", "priorite"])
+        w.writerow(["text", "categorie", "priorite", "groupe"])
         w.writerows(lignes)
-    par_categorie = Counter(c for _, c, _ in lignes)
-    par_priorite = Counter(p for _, _, p in lignes)
+    par_categorie = Counter(ligne[1] for ligne in lignes)
+    par_priorite = Counter(ligne[2] for ligne in lignes)
     print(f"{len(lignes)} incidents écrits dans {SORTIE.relative_to(RACINE).as_posix()}")
     print("  par catégorie : " + ", ".join(f"{c} {par_categorie[c]}" for c in CATEGORIES))
     print("  par priorité  : " + ", ".join(f"{p} {par_priorite[p]}" for p in ["high", "medium", "low"]))
-    print(f"  dont {MELES * len(CATEGORIES)} incidents mêlés, volontairement difficiles")
+    print(f"  dont {MELES * len(CATEGORIES)} incidents mêlés, volontairement difficiles ; "
+          f"{len({ligne[3] for ligne in lignes})} symptômes d'origine (colonne groupe)")
     return 0
 
 

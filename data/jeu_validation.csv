@@ -1,0 +1,121 @@
+text,attendu,priorite,style
+"got a mail from 'microsoft' saying my mailbox is full, the link asks for my pwd",securite,high,abreviation
+"Defender flagged a trojan in my Downloads folder",securite,high,application
+"someone is logging into my account at night, I didn't do it",securite,high,familier
+"A pop-up says my PC is infected and to call a number, not urgent but weird",securite,low,calme
+"lost my work phone on the train yesterday",securite,high,court
+"There's a weird program called AnyDesk I never installed",securite,high,application
+"i opened an attachment from an unknown sender and now excel acts strange",securite,high,melange
+"Our files on the share all end with .crypt and there is a readme asking for money, whole team stuck",securite,high,impact
+"phishing??",securite,high,tres_court
+"the antivirus keeps saying threat blocked every hour",securite,high,neutre
+"Got an SMS asking me to confirm my company login, is it fake?",securite,high,question
+"I think my password leaked, I see it on a breach website",securite,high,neutre
+"Teams message from a colleague with a strange link, his account may be hacked",securite,high,application
+"Someone left a USB key on my desk with a label 'salaries'",securite,high,neutre
+"browser shows ads everywhere and my homepage changed, no rush",securite,low,calme
+"vpn keeps dropping every 5 min from home",reseau,medium,abreviation
+"No internet on my desk PC but wifi works on my phone",reseau,medium,neutre
+"wifi super slow in the conf room",reseau,medium,familier
+"The VPN says connection timed out",reseau,medium,neutre
+"cant reach intranet from home, VPN connected",reseau,medium,abreviation
+"Ethernet cable plugged in, Windows says no network access",reseau,medium,application
+"Teams calls freeze because the connection is bad, I have a client call in 10 min",reseau,high,urgent
+"network drive Z: disconnected again",reseau,medium,court
+"internet dead on the whole 3rd floor, nobody can work",reseau,high,impact
+"DNS_PROBE_FINISHED_NXDOMAIN on internal sites",reseau,medium,code_erreur
+"wifi keeps asking me for the password again and again",reseau,medium,neutre
+"Remote desktop session drops all the time",reseau,medium,neutre
+"The guest wifi works but corporate wifi refuses my laptop, not urgent",reseau,low,calme
+"slow netwrok since this morning",reseau,medium,faute
+"uploads to SharePoint take forever over the VPN",reseau,medium,application
+"laptop screen flickering",materiel,medium,court
+"my keyboard types wrong letters, some keys are stuck",materiel,medium,neutre
+"printer 2nd floor paper jam again!!",materiel,medium,familier
+"Mouse not working even with new batteries",materiel,medium,neutre
+"battery dies after 30 min",materiel,medium,court
+"docking station doesnt detect my 2 monitors",materiel,medium,abreviation
+"headset no sound in Teams calls but speakers work",materiel,medium,application
+"PC wont turn on, no lights",materiel,medium,abreviation
+"the laptop is burning hot and the fan is screaming",materiel,medium,familier
+"webcam shows black image in meetings, low priority",materiel,low,calme
+"scanner jams on every page",materiel,medium,neutre
+"USB port is loose, devices keep disconnecting",materiel,medium,neutre
+"my monitor has a dead line across the middle",materiel,medium,neutre
+"laptop wont charge with the usb-c charger",materiel,medium,abreviation
+"lapotp screen cracked after it fell",materiel,medium,faute
+"forgot my password",compte_acces,medium,court
+"account locked, too many tries",compte_acces,medium,court
+"need access to the HR folder on SharePoint",compte_acces,medium,application
+"New hire starting Monday has no login yet",compte_acces,medium,neutre
+"MFA code never arrives on my phone",compte_acces,medium,abreviation
+"Access denied when opening the finance app",compte_acces,medium,neutre
+"pwd expired and the reset page gives an error",compte_acces,medium,abreviation
+"lost access to the team shared mailbox after moving teams",compte_acces,medium,neutre
+"Can I get admin rights on my laptop to install drivers?",compte_acces,medium,question
+"authenticator app shows codes but they are rejected",compte_acces,medium,application
+"OneDrive says I don't have permission to open the file my manager shared",compte_acces,medium,application
+"Please unlock my account ASAP, I can't log in before my presentation",compte_acces,high,urgent
+"my login works on Windows but not on the CRM",compte_acces,medium,neutre
+"user account disabled after maternity leave, no hurry",compte_acces,low,calme
+"cant sign in to outlook web, invalid credentials",compte_acces,medium,application
+"charged twice for the same licence",facturation,medium,court
+"invoice amount is wrong",facturation,medium,court
+"our card payment got declined for the renewal",facturation,medium,neutre
+"need a refund for the cancelled seats",facturation,medium,neutre
+"VAT number missing on last invoice",facturation,medium,neutre
+"still being billed after we cancelled in March",facturation,medium,neutre
+"paid the invoice but got a reminder, not urgent",facturation,low,calme
+"the price on the bill does not match the quote",facturation,medium,neutre
+"where do I download my receipt?",facturation,medium,question
+"we pay for 50 users but only have 30",facturation,medium,neutre
+"invoice in USD instead of EUR",facturation,medium,court
+"Credit note not applied to our balance",facturation,medium,neutre
+"Billing address on invoices is wrong, please fix before month end close",facturation,high,urgent
+"bank transfer not shown as received in the portal",facturation,medium,neutre
+"double charge on the corporate card!!",facturation,medium,familier
+"outlook keeps crashing when I open the calendar",logiciel,medium,application
+"excel freezes on big files",logiciel,medium,application
+"Teams stuck on loading screen",logiciel,medium,application
+"Office update failed with error 0x80070005",logiciel,medium,code_erreur
+"Word closes when I paste an image",logiciel,medium,application
+"PowerPoint crashes when I export to PDF, presentation in one hour",logiciel,high,urgent
+"OneDrive stopped syncing, red cross on the icon",logiciel,medium,application
+"my emails are stuck in the outbox since lunch",logiciel,medium,neutre
+"cant install the new version of the accounting app, installer stops",logiciel,medium,abreviation
+"Acrobat says licence not activated",logiciel,medium,application
+"Outlook search finds nothing",logiciel,medium,application
+"the CRM plugin disappeared from Outlook after the update",logiciel,medium,application
+"windows update stuck at 35%",logiciel,medium,application
+"chrome crashes on the reporting site, whenever you can",logiciel,low,calme
+"exel shows a runtime error with the macro",logiciel,medium,faute
+"email is down for the entire company",panne_service,high,impact
+"website down for all customers",panne_service,high,court
+"ERP unavailable for every department since 9am",panne_service,high,impact
+"nobody can access the file server",panne_service,high,neutre
+"the intranet returns error 503 for everyone",panne_service,high,code_erreur
+"Teams is down for the whole organisation",panne_service,high,application
+"SharePoint is unreachable for all staff",panne_service,high,application
+"payment platform offline, customers cannot pay",panne_service,high,impact
+"all branches lost access to the central system",panne_service,high,impact
+"database server crashed, every app stopped",panne_service,high,neutre
+"phone system dead in all offices",panne_service,high,neutre
+"the online shop is offline",panne_service,high,court
+"SSO is broken for every employee",panne_service,high,abreviation
+"CRM down for the whole sales team",panne_service,high,impact
+"production server not responding",panne_service,high,court
+"whats the weather tomorrow",hors_sujet,,familier
+"tell me a joke about cats",hors_sujet,,court
+"book a meeting room for friday",hors_sujet,,court
+"who won the game last night",hors_sujet,,familier
+"recommend a pizza place near the office",hors_sujet,,neutre
+"How do I request vacation days?",hors_sujet,,question
+"the coffee machine is broken again",hors_sujet,,neutre
+"what is the capital of Japan",hors_sujet,,question
+"write a poem about Monday",hors_sujet,,neutre
+"the toilets on floor 2 are out of order",hors_sujet,,neutre
+"can you translate this sentence into German",hors_sujet,,question
+"when is the next team building",hors_sujet,,question
+"my car won't start in the parking lot",hors_sujet,,neutre
+"the heating is too strong in my office",hors_sujet,,neutre
+"how many days until Christmas",hors_sujet,,question

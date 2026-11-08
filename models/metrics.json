@@ -13,6 +13,7 @@
     "securite"
   ],
   "f1_macro": 0.9075,
+  "f1_macro_par_groupe": 0.6307,
   "accuracy": 0.9068,
   "rappel_par_classe": {
     "securite": 0.9565,

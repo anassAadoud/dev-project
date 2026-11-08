@@ -52,3 +52,6 @@ htmlcov/
 # TP5.1 : les 30 conversations du bilan des tickets
 !data/conversations_30.csv
 !data/jeu_evaluation.csv
+# TP5.2 : jeu de validation (réglages) et jeu indépendant (mesure finale seulement)
+!data/jeu_validation.csv
+!data/jeu_independant.csv

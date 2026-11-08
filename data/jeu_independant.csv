@@ -1,0 +1,127 @@
+text,attendu,priorite,style
+"I typed my credentials into a fake Office 365 page by mistake",securite,high,application
+"malware alert from the endpoint agent on my laptop",securite,high,neutre
+"there is a login from Brazil on my account and I'm in Casablanca",securite,high,neutre
+"my laptop bag with the company laptop got stolen at the airport",securite,high,neutre
+"received a weird invoice zip from an unknown supplier, didn't open it, low priority",securite,low,calme
+"ransomware note on the screen, all files encrypted, entire accounting team blocked",securite,high,impact
+"pls check, I think I clicked a phishing link",securite,high,abreviation
+"strange admin user appeared in our Azure tenant",securite,high,application
+"someone called pretending to be IT and asked for my MFA code",securite,high,neutre
+"Chrome installed an extension by itself that shows popups",securite,high,application
+"my mailbox is sending spam to all my contacts",securite,high,neutre
+"virus??",securite,high,tres_court
+"the printer works fine, but the real problem is that I gave my password to a fake support site",securite,high,melange
+"found an unknown device plugged into the server room switch",securite,high,neutre
+"security warning that my password appears in a data breach, nothing urgent",securite,low,calme
+"antivirus quarantined a file I need for work",securite,high,neutre
+"VPN won't connect at the hotel",reseau,medium,neutre
+"no internet at all on my laptop",reseau,medium,court
+"WiFi drops every few minutes in building B",reseau,medium,neutre
+"connected to wifi but no internet access",reseau,medium,neutre
+"intranet pages wont load, google works",reseau,medium,abreviation
+"network cable at my new desk does nothing",reseau,medium,neutre
+"VPN connected but I can't open the shared drive",reseau,medium,neutre
+"very high ping, video calls lag constantly",reseau,medium,neutre
+"the whole open space lost the network, 40 people waiting",reseau,high,impact
+"cannot resolve hostnames on the internal network",reseau,medium,neutre
+"RDP to the office PC times out",reseau,medium,abreviation
+"conexion keeps droping",reseau,medium,faute
+"my outlook works but the real problem is the vpn that disconnects every hour",reseau,medium,melange
+"wifi wont show the corporate network, no rush",reseau,low,calme
+"internet slow when uploading to OneDrive from home",reseau,medium,application
+"lost network after the switch was replaced",reseau,medium,neutre
+"the laptop screen is cracked",materiel,medium,court
+"keyboard not responding",materiel,medium,court
+"printer prints faded pages",materiel,medium,neutre
+"mouse cursor jumps around by itself",materiel,medium,neutre
+"battery swollen, the case is bending",materiel,medium,neutre
+"second monitor black on the dock",materiel,medium,court
+"headset mic not detected",materiel,medium,court
+"computer does not boot, just beeps",materiel,medium,neutre
+"fan very loud and laptop overheats",materiel,medium,neutre
+"camera not found in Teams",materiel,medium,application
+"scanner gives blank pages",materiel,medium,court
+"the charger smells like burning plastic",materiel,medium,neutre
+"teams works, but the real issue is my keyboard that stopped typing",materiel,medium,melange
+"touchpad clicks by itself, not urgent",materiel,low,calme
+"monitor flickers when I move the cable",materiel,medium,neutre
+"printr offline",materiel,medium,faute
+"forgot my windows password",compte_acces,medium,court
+"account locked out",compte_acces,medium,court
+"I need access to the Marketing SharePoint site",compte_acces,medium,application
+"intern has no account yet, starts tomorrow",compte_acces,medium,neutre
+"2FA codes rejected after I got a new phone",compte_acces,medium,abreviation
+"permission denied on the shared folder of my team",compte_acces,medium,neutre
+"password reset link expired",compte_acces,medium,court
+"can't open the support team shared mailbox",compte_acces,medium,neutre
+"I need admin rights to install a printer driver",compte_acces,medium,neutre
+"invalid username or password on the HR portal",compte_acces,medium,neutre
+"my account was disabled when I came back from leave",compte_acces,medium,neutre
+"locked out and I have to submit the payroll in 20 minutes",compte_acces,high,urgent
+"remove my access to the old project folder, whenever you can",compte_acces,low,calme
+"pasword expired cant login",compte_acces,medium,faute
+"onedrive says access denied on a file shared by my boss",compte_acces,medium,application
+"my wifi is fine, but the real problem is my account that is locked",compte_acces,medium,melange
+"we were charged twice this month",facturation,medium,court
+"the invoice total is higher than our contract",facturation,medium,neutre
+"renewal payment refused by the bank",facturation,medium,neutre
+"please refund the licences we cancelled",facturation,medium,neutre
+"wrong VAT rate on invoice 2026-114",facturation,medium,neutre
+"we cancelled but you still bill us",facturation,medium,neutre
+"reminder received for an invoice already paid",facturation,medium,neutre
+"I need the receipt for my expense report, no hurry",facturation,low,calme
+"billed for 25 seats, we have 18 users",facturation,medium,neutre
+"invoice addressed to the old company name",facturation,medium,neutre
+"discount from the contract missing on the bill",facturation,medium,neutre
+"credit card charged 3 times!!",facturation,medium,familier
+"the invoice must be corrected today for the audit",facturation,high,urgent
+"cant find the October invoice in the billing portal",facturation,medium,abreviation
+"price increased without notice",facturation,medium,court
+"the printer is fine, but the real problem is a double payment on our account",facturation,medium,melange
+"Outlook crashes at startup",logiciel,medium,application
+"Excel not responding when I filter",logiciel,medium,application
+"Teams won't open after the update",logiciel,medium,application
+"Word document won't save, error message",logiciel,medium,application
+"PowerPoint very slow with my slides",logiciel,medium,application
+"OneDrive sync paused and won't resume",logiciel,medium,application
+"emails stay in the outbox",logiciel,medium,court
+"the installer of the new tool fails at 90%",logiciel,medium,neutre
+"Adobe Reader can't open PDFs",logiciel,medium,application
+"windows update failed again",logiciel,medium,application
+"SharePoint page shows an error when I upload a file",logiciel,medium,application
+"calendar not syncing to my phone",logiciel,medium,neutre
+"excel macro error 1004 and the report is due in one hour",logiciel,high,urgent
+"teams no sound in meetings, whenever possible",logiciel,low,calme
+"outlok keeps asking for password",logiciel,medium,faute
+"my monitor is ok, but the real problem is excel that crashes all the time",logiciel,medium,melange
+"nobody in the company can send emails",panne_service,high,impact
+"customer website down",panne_service,high,court
+"the ERP is down for everyone",panne_service,high,court
+"the file server is unreachable for every department today",panne_service,high,neutre
+"Teams outage for the whole company",panne_service,high,application
+"SharePoint down for all users",panne_service,high,application
+"the payment system is offline for all customers",panne_service,high,impact
+"every branch lost the connection to headquarters servers",panne_service,high,impact
+"the main database is down, all apps stopped",panne_service,high,neutre
+"phones down in every office",panne_service,high,neutre
+"booking site offline, clients calling",panne_service,high,impact
+"SSO down, no one can log in anywhere",panne_service,high,abreviation
+"warehouse system down, shipments blocked",panne_service,high,impact
+"the CRM is unavailable for everyone since 8am",panne_service,high,neutre
+"intranet 500 error for all employees",panne_service,high,code_erreur
+"cloud storage outage for all staff",panne_service,high,neutre
+"what time is it in Tokyo",hors_sujet,,question
+"tell me something funny",hors_sujet,,court
+"is it going to rain today",hors_sujet,,question
+"order more water bottles for the kitchen",hors_sujet,,neutre
+"where is the nearest bank",hors_sujet,,question
+"who is the CEO of Apple",hors_sujet,,question
+"the elevator is stuck on floor 4",hors_sujet,,neutre
+"can I work from home on Friday",hors_sujet,,question
+"suggest a good book",hors_sujet,,court
+"the lights in the parking are off",hors_sujet,,neutre
+"how do I cook rice",hors_sujet,,question
+"what's 15 times 12",hors_sujet,,question
+"my chair is broken",hors_sujet,,court
+"happy birthday to the team!",hors_sujet,,familier

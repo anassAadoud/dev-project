@@ -18,7 +18,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 
@@ -29,6 +29,8 @@ URL_REEL = (
     "parquet/default/train/0.parquet"
 )
 MODELE = RACINE / "models" / "support.joblib"
+# TP5.2 : copie locale du jeu réel (hors Git, comme data/*) : le second lancement marche hors ligne.
+REEL_LOCAL = RACINE / "data" / "tobi_bueck.parquet"
 METRIQUES = RACINE / "models" / "metrics.json"
 SEUIL_F1 = 0.85       # le seuil du cours
 # Seuil d'acceptation de notre fiche de cadrage (cas2), par source : le cours sur la démonstration ;
@@ -75,9 +77,19 @@ def preparer_reel(brut: pd.DataFrame) -> pd.DataFrame:
     return df[["text", "categorie", "priorite", "answer"]].reset_index(drop=True)
 
 
+def lire_reel_brut() -> pd.DataFrame:
+    """Le parquet Tobi-Bueck : la copie locale si elle existe, sinon le téléchargement, gardé ensuite."""
+    if REEL_LOCAL.exists():
+        return pd.read_parquet(REEL_LOCAL)
+    brut = pd.read_parquet(URL_REEL)
+    REEL_LOCAL.parent.mkdir(parents=True, exist_ok=True)
+    brut.to_parquet(REEL_LOCAL)
+    return brut
+
+
 def charger(reel: bool) -> tuple[pd.DataFrame, str]:
     if reel:
-        return preparer_reel(pd.read_parquet(URL_REEL)), "tobi-bueck"
+        return preparer_reel(lire_reel_brut()), "tobi-bueck"
     if not DEMO.exists():
         raise SystemExit("data/demo_incidents.csv absent : lancez d'abord python src/make_demo.py")
     return pd.read_csv(DEMO), "demo"
@@ -110,6 +122,26 @@ def decouper(df: pd.DataFrame):
     return train_test_split(df, test_size=0.2, random_state=GRAINE, stratify=df["categorie"])
 
 
+def decouper_par_groupe(df: pd.DataFrame):
+    """TP5.2 : le découpage honnête du jeu de démonstration. Toutes les phrases d'un même symptôme
+    vont du même côté : le test mesure la généralisation à des symptômes jamais vus."""
+    if "groupe" not in df.columns:
+        return decouper(df)
+    i_train, i_test = next(GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=GRAINE)
+                           .split(df, groups=df["groupe"]))
+    return df.iloc[i_train], df.iloc[i_test]
+
+
+def f1_par_groupe(df: pd.DataFrame) -> float | None:
+    """F1 macro d'un modèle entraîné sans les symptômes du test (None sans colonne groupe)."""
+    if "groupe" not in df.columns:
+        return None
+    entr, test = decouper_par_groupe(df)
+    modele = construire_pipeline().fit(entr["text"], entr["categorie"])
+    rapport = classification_report(test["categorie"], modele.predict(test["text"]), output_dict=True, zero_division=0)
+    return round(rapport["macro avg"]["f1-score"], 4)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reel", action="store_true", help="utiliser le jeu public Tobi-Bueck")
@@ -129,6 +161,10 @@ def main() -> int:
     print(f"F1 macro sur le jeu de test : {f1:.3f} (seuil du cours {SEUIL_F1} : "
           f"{'atteint' if f1 >= SEUIL_F1 else 'non atteint'} ; acceptation pour « {source} » : {seuil})")
 
+    f1_groupe = f1_par_groupe(df)
+    if f1_groupe is not None:
+        print(f"F1 macro honnête (symptômes du test jamais vus à l'entraînement) : {f1_groupe:.3f}")
+
     priorite = construire_pipeline_priorite().fit(train["text"], train["priorite"])
     rapport_p = classification_report(test["priorite"], priorite.predict(test["text"]),
                                       output_dict=True, zero_division=0)
@@ -143,6 +179,7 @@ def main() -> int:
         "n_test": len(test),
         "classes": [str(c) for c in pipeline.classes_],
         "f1_macro": round(f1, 4),
+        "f1_macro_par_groupe": f1_groupe,
         "accuracy": round(rapport["accuracy"], 4),
         "rappel_par_classe": {c: round(rapport[c]["recall"], 4) for c in CATEGORIES if c in rapport},
         "priorite_f1_macro": round(rapport_p["macro avg"]["f1-score"], 4),
