@@ -105,6 +105,18 @@ def test_stockage_derniere_version(monkeypatch, tmp_path):
 
 # --- La base de connaissances ---
 
+def test_base_au_moins_cinq_articles_par_categorie():
+    from collections import Counter
+
+    from kb import CATEGORIES, charger_base
+
+    articles = charger_base()[0]
+    par_categorie = Counter(a["categorie"] for a in articles)
+    assert all(par_categorie[c] >= 5 for c in CATEGORIES), par_categorie
+    assert len({a["id"] for a in articles}) == len(articles)  # identifiants uniques
+    assert all(len(a["etapes"].split("|")) >= 3 for a in articles)
+
+
 def test_chercher_exclut_les_articles_essayes():
     from kb import chercher
 

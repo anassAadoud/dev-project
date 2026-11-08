@@ -36,6 +36,14 @@ def test_trente_conversations_variees():
     assert sum(ligne["scenario"] == "resolu" for ligne in LIGNES) > 15  # la plupart ont une solution
 
 
+def test_chaque_incident_resolu_a_son_article_dans_la_base():
+    from kb import charger_base
+
+    ids = {a["id"] for a in charger_base()[0]}
+    manquants = {i for ligne in LIGNES for i in ligne["articles_ok"].split()} - ids
+    assert not manquants, f"articles absents de la base : {sorted(manquants)}"
+
+
 @pytest.mark.parametrize("ligne", LIGNES, ids=[ligne["text"][:40] for ligne in LIGNES])
 def test_un_ticket_seulement_si_necessaire(client, ligne):
     from kb import charger_base
