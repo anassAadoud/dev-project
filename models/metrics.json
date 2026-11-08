@@ -1,8 +1,8 @@
 {
-  "source": "demo",
+  "source": "tobi-bueck",
   "date": "2026-11-08",
-  "n_train": 280,
-  "n_test": 70,
+  "n_train": 6761,
+  "n_test": 1691,
   "classes": [
     "compte_acces",
     "facturation",
@@ -12,19 +12,19 @@
     "reseau",
     "securite"
   ],
-  "f1_macro": 0.8561,
-  "accuracy": 0.8571,
+  "f1_macro": 0.7886,
+  "accuracy": 0.8445,
   "rappel_par_classe": {
-    "securite": 0.9,
-    "reseau": 0.9,
-    "materiel": 0.8,
-    "compte_acces": 0.9,
-    "facturation": 1.0,
-    "logiciel": 0.8,
-    "panne_service": 0.7
+    "securite": 0.9238,
+    "reseau": 0.7448,
+    "materiel": 0.6154,
+    "compte_acces": 0.6133,
+    "facturation": 0.8704,
+    "logiciel": 0.9512,
+    "panne_service": 0.6517
   },
-  "priorite_f1_macro": 1.0,
-  "priorite_rappel_high": 1.0,
-  "seuil_f1": 0.85,
+  "priorite_f1_macro": 0.6614,
+  "priorite_rappel_high": 0.7172,
+  "seuil_f1": 0.75,
   "seuil_f1_cours": 0.85
 }
