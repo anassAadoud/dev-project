@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Prédiction unitaire : la catégorie IT d'un incident, sa confiance et sa priorité.
+"""Prédiction unitaire : la catégorie IT d'un incident, sa confiance, sa priorité (TP2, typé au TP4).
 
 Usage :
   python src/predict.py "My VPN keeps disconnecting every 10 minutes"
@@ -8,6 +8,7 @@ Usage :
 import sys
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, TypedDict
 
 import joblib
 
@@ -15,23 +16,43 @@ RACINE = Path(__file__).resolve().parents[1]
 MODELE = RACINE / "models" / "support.joblib"
 
 
+class Resultat(TypedDict):
+    """Ce que renvoie predict() : l'étiquette du modèle, sa confiance, la priorité, et la part
+    des mots du texte que le modèle connaît (le garde-fou de vocabulaire du TP4)."""
+
+    label: str
+    score: float
+    priorite: str
+    connus: float
+
+
 @lru_cache(maxsize=1)
-def charger_modele():
+def charger_modele() -> Any:
     """Chargé une seule fois par processus, pas à chaque appel."""
     if not MODELE.exists():
         raise FileNotFoundError(f"{MODELE.relative_to(RACINE).as_posix()} absent : lancez python src/train.py")
     return joblib.load(MODELE)
 
 
-def predict(texte):
-    """Renvoie {'label': catégorie, 'score': confiance, 'priorite': 'high'|'medium'|'low'}."""
+def part_connue(texte: str, vectoriseur: Any) -> float:
+    """Part des mots du texte (unigrammes) présents dans le vocabulaire du modèle (notebook, section 15.1)."""
+    mots = [t for t in vectoriseur.build_analyzer()(texte) if " " not in t]
+    return sum(t in vectoriseur.vocabulary_ for t in mots) / len(mots) if mots else 0.0
+
+
+def predict(texte: str) -> Resultat:
+    """Renvoie {'label': catégorie, 'score': confiance, 'priorite': ..., 'connus': part de mots connus}."""
     if not isinstance(texte, str) or not texte.strip():
         raise ValueError("texte vide")
     modeles = charger_modele()
-    probas = modeles["categorie"].predict_proba([texte])[0]
-    categorie = str(modeles["categorie"].classes_[probas.argmax()])
-    priorite = str(modeles["priorite"].predict([texte])[0])
-    return {"label": categorie, "score": round(float(probas.max()), 4), "priorite": priorite}
+    categorie = modeles["categorie"]
+    probas = categorie.predict_proba([texte])[0]
+    return {
+        "label": str(categorie.classes_[probas.argmax()]),
+        "score": round(float(probas.max()), 4),
+        "priorite": str(modeles["priorite"].predict([texte])[0]),
+        "connus": round(part_connue(texte, categorie.named_steps["tfidf"]), 4),
+    }
 
 
 def main() -> int:
@@ -39,7 +60,8 @@ def main() -> int:
         print(__doc__)
         return 2
     resultat = predict(" ".join(sys.argv[1:]))
-    print(f"{resultat['label']} (confiance {resultat['score']:.0%}, priorité {resultat['priorite']})")
+    print(f"{resultat['label']} (confiance {resultat['score']:.0%}, priorité {resultat['priorite']}, "
+          f"mots connus {resultat['connus']:.0%})")
     return 0
 
 

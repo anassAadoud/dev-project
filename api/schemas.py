@@ -3,7 +3,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-Label = Literal["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
+Categorie = Literal["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
+# TP4 : sous le seuil d'abstention, ou avec trop de mots inconnus, l'API ne tranche pas.
+Label = Literal["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service",
+                "INDETERMINE"]
 Priorite = Literal["high", "medium", "low"]
 Decision = Literal["solution", "escalade"]
 
@@ -29,9 +32,10 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     """Catégorie IT, confiance et priorité estimée."""
 
-    label: Label = Field(..., description="Catégorie IT de l'incident")
+    label: Label = Field(..., description="Catégorie IT de l'incident, ou INDETERMINE sous le seuil d'abstention")
     score: float = Field(..., ge=0, le=1, description="Confiance de la catégorie prédite")
     priorite: Priorite = Field(..., description="Priorité estimée par le second modèle")
+    connus: float = Field(..., ge=0, le=1, description="Part des mots du texte connus du modèle")
     text: str = Field(..., description="Aperçu du texte analysé (100 caractères)")
 
 

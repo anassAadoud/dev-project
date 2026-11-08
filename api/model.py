@@ -3,6 +3,9 @@
 L'API n'entraîne rien et ne connaît pas scikit-learn : elle appelle predict() du TP2,
 qui charge models/support.joblib une seule fois, et chercher() de src/kb.py.
 Les règles d'escalade de la fiche cas1 vivent ici : elles sont lisibles et testées.
+
+TP4 : l'API s'abstient (INDETERMINE) au lieu de deviner, dans deux cas : la confiance est
+sous SEUIL_ABSTENTION, ou moins de SEUIL_VOCABULAIRE des mots sont connus du modèle.
 """
 import sys
 from pathlib import Path
@@ -13,7 +16,11 @@ from kb import charger_base, chercher  # noqa: E402
 from predict import charger_modele  # noqa: E402
 from predict import predict as _predict  # noqa: E402
 
-# Un groupe de techniciens par catégorie (fiche cas1).
+# Seuils choisis avec python src/courbe_seuil.py et le notebook (voir docs/semaine4.md).
+SEUIL_ABSTENTION = 0.60
+SEUIL_VOCABULAIRE = 0.50
+
+# Un groupe de techniciens par catégorie (fiche cas1) ; l'incident incertain va au tri.
 GROUPES = {
     "securite": "Sécurité (SOC)",
     "reseau": "Réseau",
@@ -22,6 +29,7 @@ GROUPES = {
     "facturation": "Facturation",
     "logiciel": "Applications",
     "panne_service": "Exploitation (N2)",
+    "INDETERMINE": "Tri N1",
 }
 
 
@@ -36,13 +44,16 @@ class SupportClassifier:
         self.articles = len(charger_base()[0])
 
     def predict(self, text: str) -> dict:
+        """Renvoie la catégorie du contrat (ou INDETERMINE), la confiance, la priorité et un aperçu."""
         r = _predict(text)
-        return {"label": r["label"], "score": r["score"], "priorite": r["priorite"], "text": text[:100]}
+        sur = r["score"] >= SEUIL_ABSTENTION and r["connus"] >= SEUIL_VOCABULAIRE
+        return {"label": r["label"] if sur else "INDETERMINE", "score": r["score"], "priorite": r["priorite"],
+                "connus": r["connus"], "text": text[:100]}
 
     def assist(self, text: str) -> dict:
         """Classe l'incident, cherche un article, puis applique les règles d'escalade."""
         prediction = self.predict(text)
-        article = chercher(text, prediction["label"])
+        article = None if prediction["label"] == "INDETERMINE" else chercher(text, prediction["label"])
         decision, raison = decider(prediction, article)
         return {**prediction, "decision": decision, "raison": raison,
                 "groupe": GROUPES[prediction["label"]], "article": article}
@@ -51,6 +62,12 @@ class SupportClassifier:
 def decider(prediction: dict, article: dict | None) -> tuple[str, str]:
     """Les règles de la fiche cas1, dans l'ordre : la première qui s'applique décide.
     Dans le doute, on escalade : une escalade inutile coûte moins qu'une escalade manquée."""
+    if prediction["label"] == "INDETERMINE":
+        if prediction["connus"] < SEUIL_VOCABULAIRE:
+            return "escalade", (f"moins de la moitié des mots sont connus du modèle ({prediction['connus']:.0%}) : "
+                                "langue ou vocabulaire inconnus, un technicien trie l'incident")
+        return "escalade", (f"catégorie incertaine (confiance {prediction['score']:.2f} sous {SEUIL_ABSTENTION}) : "
+                            "un technicien trie l'incident")
     if prediction["priorite"] == "high":
         return "escalade", "priorité haute : un technicien prend l'incident tout de suite"
     if article is None:
