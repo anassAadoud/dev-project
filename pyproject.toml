@@ -16,7 +16,8 @@ check_untyped_defs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["joblib", "joblib.*", "sklearn", "sklearn.*", "pandas", "pandas.*", "uvicorn", "uvicorn.*"]
+module = ["joblib", "joblib.*", "sklearn", "sklearn.*", "pandas", "pandas.*", "uvicorn", "uvicorn.*", "scipy", "scipy.*",
+          "sentence_transformers", "sentence_transformers.*"]
 ignore_missing_imports = true
 
 [tool.coverage.report]

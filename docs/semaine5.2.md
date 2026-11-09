@@ -188,3 +188,50 @@ incident sans article compte comme manqué.
   un symptôme de la nouvelle base (contrôle des fuites de `tests/test_evaluer.py`).
 - Le jeu indépendant a reçu ses `articles_ok` dans le même commit, d'après le texte des articles, **sans faire
   tourner l'agent dessus** : il sera mesuré une seule fois, en phase 7.
+
+## Phase 4 : l'hybride TF-IDF + MiniLM
+
+**L'essai.** Le notebook `minilm_vs_tfidf.ipynb` (tickets Tobi-Bueck) avait montré que MiniLM seul perdait 5 points
+de F1 et que l'hybride en gagnait 2 : seul l'hybride est essayé. `python src/essai_minilm.py` entraîne le même code
+sur 3 graines du jeu de démonstration et compare, sur la validation :
+
+- **actuel** : mots + caractères → LinearSVC calibré (modèle de la phase 3 bis) ;
+- **H1** : mots + caractères + vecteurs all-MiniLM-L6-v2 (dimension 384, normalisés) côte à côte → même classifieur ;
+- **H2** : H1, et la recherche d'articles lit aussi les vecteurs MiniLM.
+
+| Validation, 3 graines | F1 macro | Exactitude | Faux | top-1 | top-3 | Escalade (tickets du fichier) | Fausses escalades | ms / message |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| actuel | 0,791 ± 0,002 | 0,686 | 4,3 | 74,9 % | 85,7 % | 52,2 % | 27,1 % | 4 à 11 |
+| H1 | **0,847 ± 0,002** | 0,759 | 3,0 | 78,4 % | 87,0 % | 50,8 % | 22,7 % | 24 à 45 |
+| **H2 (retenu)** | **0,847 ± 0,002** | **0,759** | **3,0** | **81,9 %** | **96,2 %** | 50,8 % | 22,7 % | 83 à 100 |
+| H2, poids MiniLM 0,5 | 0,828 | 0,737 | 4,0 | 81,0 % | 95,2 % | 51,1 % | 24,4 % | — |
+| H2, poids MiniLM 2,0 | 0,850 | 0,765 | 3,0 | 82,5 % | 96,2 % | 50,6 % | 22,2 % | — |
+
+- **Règle de décision** (fixée avant l'essai) : l'hybride n'est gardé que s'il gagne au moins 5 points de F1 macro
+  ou de top-3. H2 gagne **+5,6 points de F1** et **+10,5 points de top-3** : il est gardé.
+- **Poids** : 2,0 fait +0,3 point de F1, moins que l'écart entre graines ; 1,0 est gardé (plus simple).
+- **Veto** (jeux déjà vus) : jeu du TP5.1, F1 0,807 → 0,853, faux 4,0 → 3,3, fausses escalades 24,4 % → 18,9 % ;
+  jeu d'or, identique (0,857). Aucun recul.
+- **Le temps** : environ 0,1 s par message sur le processeur du poste (encodage MiniLM d'une phrase, une fois :
+  le classement et la recherche partagent le vecteur, `encodeur.Phrases`). Le chargement de l'encodeur se fait au
+  démarrage de l'API (quelques secondes), pas à la première requête.
+- **Le modèle enregistré** (`python src/train.py`) : validation, exactitude 75,2 %, F1 macro 0,846, 2 faux, hors
+  sujet refusé **100 %** (93 % avant), top-1 81,9 %, top-3 96,2 % (86,7 % de top-1 après une réponse au diagnostic) ;
+  F1 par symptôme du jeu de démonstration 0,683 → 0,736. Les 30 conversations du TP5.1 : 10 tickets, 0 écart.
+
+**L'intégration.**
+
+- `src/encodeur.py` : `Phrases`, l'étape « phrases » du `FeatureUnion` de `train.construire_pipeline` et de l'index
+  de `kb.py`. Le **mode** (`minilm` ou `factice`) est choisi à l'entraînement (`SUPPORT_ENCODEUR`) et gardé dans le
+  modèle ; la recherche d'articles suit le modèle servi. Un cache borné (5 000 textes) évite de réencoder.
+- **Encodeur factice** dans la CI (`SUPPORT_ENCODEUR=factice`) : des n-grammes hachés de même dimension, sans
+  téléchargement ni sentence-transformers. La CI simulée sur une copie du dépôt : tous les tests passent, couverture
+  de l'API 98,9 %.
+- **Un test lent** (`@pytest.mark.lent`, `tests/test_encodeur.py`) utilise le vrai MiniLM : deux formulations du même
+  incident sans mot commun sont plus proches qu'un autre incident. Ignoré si le modèle n'est pas dans le cache ; la
+  CI lance `pytest -m "not lent"`.
+- **Sans MiniLM**, l'API refuse de démarrer avec un message qui dit quoi faire ; le repli reste
+  `python src/train.py --sans-minilm` (le modèle de la phase 3 bis).
+- **Règle des messages mêlés** : la CI (encodeur factice) a montré que deux pièges étaient coupés (« The issue is
+  that my account is disabled… » : la règle retirait l'annonce, il n'y a pourtant pas de première partie). Un message
+  qui commence par l'annonce n'est plus coupé : messages mêlés 20 / 22 justes avant et après, pièges coupés 2 → 0.

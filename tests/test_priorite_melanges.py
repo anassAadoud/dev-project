@@ -69,7 +69,8 @@ def test_partie_principale_d_un_message_mele(texte, attendu):
 
 @pytest.mark.parametrize("texte", ["The VPN connects but I can't open the shared drive",
                                    "Outlook crashes but only when I open the calendar",
-                                   "My VPN keeps disconnecting", "The issue is ok"])
+                                   "My VPN keeps disconnecting", "The issue is ok",
+                                   "The issue is that my account is disabled after my leave"])
 def test_les_pieges_ne_sont_pas_coupes(texte):
     assert partie_principale(texte) == texte
 

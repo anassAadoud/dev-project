@@ -5,6 +5,8 @@ Usage :
   python src/train.py            # jeu de démonstration (data/demo_incidents.csv) : celui de la CI
   python src/train.py --mixte    # TP5.2 : démonstration + tickets réels Tobi-Bueck raccourcis et pondérés
   python src/train.py --origine  # TP5.2 : le modèle d'origine (mots seuls), gardé comme repli
+  python src/train.py --sans-minilm  # TP5.2 : mots + caractères, sans vecteurs de phrases (repli de l'hybride)
+  SUPPORT_ENCODEUR=factice python src/train.py  # l'hybride avec un encodeur factice, sans téléchargement (CI)
   python src/train.py --reel     # vrai jeu public seul : Tobi-Bueck/customer-support-tickets
 
 Produit : models/support.joblib (les deux modèles) et models/metrics.json
@@ -24,6 +26,7 @@ from sklearn.model_selection import GroupShuffleSplit, train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.svm import LinearSVC
 
+from encodeur import Phrases, mode_demande
 from predict import vectoriseur_mots
 
 RACINE = Path(__file__).resolve().parents[1]
@@ -113,18 +116,29 @@ POIDS_REEL = 0.15
 MOTS_REEL = 25
 
 
+# TP5.2, phase 4 : l'hybride. Les vecteurs all-MiniLM-L6-v2 s'ajoutent aux TF-IDF (python src/essai_minilm.py) :
+# validation, 3 graines, F1 macro 0,791 -> 0,847, faux 4,3 -> 3,0 ; poids 0,5 : 0,828 ; poids 2 : 0,850 (dans
+# l'écart entre graines) : 1,0 est gardé. MiniLM seul perdait 5 points dans le notebook : il n'est pas essayé seul.
+PHRASES = True
+POIDS_PHRASES = 1.0
+
+
 def tfidf_caracteres() -> TfidfVectorizer:
     return TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5), min_df=2, sublinear_tf=True)
 
 
-def construire_pipeline(caracteres: bool | None = None) -> Pipeline:
+def construire_pipeline(caracteres: bool | None = None, phrases: bool | None = None) -> Pipeline:
     """Vectoriseur et modèle dans un seul objet : la même transformation
     s'applique forcément à l'entraînement et en production. LinearSVC calibré :
     le meilleur F1 du notebook, et une vraie probabilité pour l'abstention.
     TP5.2 : avec caracteres, les mots et les n-grammes de caractères sont assemblés ; sans, c'est le
     modèle d'origine (TP2), gardé comme repli (python src/train.py --origine)."""
     caracteres = CARACTERES if caracteres is None else caracteres
-    vectoriseur = FeatureUnion([("mots", tfidf()), ("caracteres", tfidf_caracteres())]) if caracteres else tfidf()
+    phrases = PHRASES if phrases is None else phrases
+    parties = [("mots", tfidf()), ("caracteres", tfidf_caracteres())]
+    if phrases:
+        parties.append(("phrases", Phrases(POIDS_PHRASES, mode_demande())))
+    vectoriseur = FeatureUnion(parties) if caracteres else tfidf()
     return Pipeline([
         ("tfidf", vectoriseur),
         ("clf", CalibratedClassifierCV(LinearSVC(class_weight="balanced", random_state=GRAINE), cv=3)),
@@ -143,13 +157,15 @@ def reel_pour_le_melange() -> pd.DataFrame:
     return entr.assign(text=textes_courts(entr["text"]))[["text", "categorie", "priorite"]]
 
 
-def entrainer(entr: pd.DataFrame, reel: pd.DataFrame | None = None, caracteres: bool | None = None) -> dict:
+def entrainer(entr: pd.DataFrame, reel: pd.DataFrame | None = None, caracteres: bool | None = None,
+              phrases: bool | None = None) -> dict:
     """Les deux modèles servis par l'API. Avec reel, ses tickets s'ajoutent à la catégorie avec POIDS_REEL."""
     donnees, poids = entr[["text", "categorie"]], [1.0] * len(entr)
     if reel is not None:
         donnees = pd.concat([donnees, reel[["text", "categorie"]]])
         poids += [POIDS_REEL] * len(reel)
-    categorie = construire_pipeline(caracteres).fit(donnees["text"], donnees["categorie"], clf__sample_weight=poids)
+    categorie = construire_pipeline(caracteres, phrases).fit(donnees["text"], donnees["categorie"],
+                                                             clf__sample_weight=poids)
     return {"categorie": categorie, "priorite": construire_pipeline_priorite().fit(entr["text"], entr["priorite"])}
 
 
@@ -176,12 +192,12 @@ def decouper_par_groupe(df: pd.DataFrame):
     return df.iloc[i_train], df.iloc[i_test]
 
 
-def f1_par_groupe(df: pd.DataFrame, caracteres: bool | None = None) -> float | None:
+def f1_par_groupe(df: pd.DataFrame, caracteres: bool | None = None, phrases: bool | None = None) -> float | None:
     """F1 macro d'un modèle entraîné sans les symptômes du test (None sans colonne groupe)."""
     if "groupe" not in df.columns:
         return None
     entr, test = decouper_par_groupe(df)
-    modele = construire_pipeline(caracteres).fit(entr["text"], entr["categorie"])
+    modele = construire_pipeline(caracteres, phrases).fit(entr["text"], entr["categorie"])
     rapport = classification_report(test["categorie"], modele.predict(test["text"]), output_dict=True, zero_division=0)
     return round(rapport["macro avg"]["f1-score"], 4)
 
@@ -191,6 +207,7 @@ def main() -> int:
     parser.add_argument("--reel", action="store_true", help="utiliser le jeu public Tobi-Bueck")
     parser.add_argument("--mixte", action="store_true", help="démonstration + tickets réels raccourcis et pondérés")
     parser.add_argument("--origine", action="store_true", help="le modèle d'origine (mots seuls), comme repli")
+    parser.add_argument("--sans-minilm", action="store_true", help="sans vecteurs de phrases (repli de l'hybride)")
     args = parser.parse_args()
     if args.reel and args.mixte:
         raise SystemExit("--reel et --mixte sont exclusifs")
@@ -203,7 +220,8 @@ def main() -> int:
     reel = reel_pour_le_melange() if args.mixte else None
     if reel is not None:
         print(f"Mélange : {len(reel)} tickets réels raccourcis à {MOTS_REEL} mots, poids {POIDS_REEL}")
-    modeles = entrainer(train, reel, caracteres=False if args.origine else None)
+    phrases = False if (args.origine or args.sans_minilm) else None
+    modeles = entrainer(train, reel, caracteres=False if args.origine else None, phrases=phrases)
     pipeline = modeles["categorie"]
     print(f"Vocabulaire : {len(vectoriseur_mots(pipeline).vocabulary_)} mots")
     rapport = classification_report(test["categorie"], pipeline.predict(test["text"]),
@@ -213,7 +231,7 @@ def main() -> int:
     print(f"F1 macro sur le jeu de test : {f1:.3f} (seuil du cours {SEUIL_F1} : "
           f"{'atteint' if f1 >= SEUIL_F1 else 'non atteint'} ; acceptation pour « {source} » : {seuil})")
 
-    f1_groupe = f1_par_groupe(df, caracteres=False if args.origine else None)
+    f1_groupe = f1_par_groupe(df, caracteres=False if args.origine else None, phrases=phrases)
     if f1_groupe is not None:
         print(f"F1 macro honnête (symptômes du test jamais vus à l'entraînement) : {f1_groupe:.3f}")
 
@@ -224,6 +242,9 @@ def main() -> int:
 
     MODELE.parent.mkdir(parents=True, exist_ok=True)
     variante = "origine (mots)" if args.origine else ("mots + caractères" if CARACTERES else "mots")
+    if not args.origine and (PHRASES if phrases is None else phrases):
+        variante += f" + phrases ({mode_demande()})"
+    print(f"Variante : {variante}")
     meta = {"source": source, "variante": variante, "mixte": bool(args.mixte), "date": date.today().isoformat(),
             "f1_macro": round(f1, 4), "f1_macro_par_groupe": f1_groupe}
     joblib.dump({"categorie": pipeline, "priorite": priorite, "meta": meta}, MODELE)

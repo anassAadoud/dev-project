@@ -1133,6 +1133,7 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 - **Phase 2, le modèle** : mots + caractères, copies réécrites, applications, `--mixte` et `--origine` ; validation (3 graines) 0,511 → 0,635.
 - **Phase 3, la décision** : classe hors sujet, panne générale, messages mêlés, priorité à part ; validation 0,663, F1 macro 0,776, priorité 0,870.
 - **Phase 3 bis, la qualité des réponses** : recherche dans toute la base (3 articles, bonus de catégorie), articles aussi quand le modèle hésite, base de 57 articles aux étapes vérifiables et sourcées, questions de diagnostic ; validation : top-1 des articles 52,4 % → 75,2 %, top-3 58,1 % → 85,7 % (79,0 % de top-1 après une réponse au diagnostic) ; classement 0,654 → 0,686, F1 macro 0,768 → 0,791 (3 graines).
+- **Phase 4, l'hybride** : TF-IDF + vecteurs all-MiniLM-L6-v2 dans le classement et la recherche d'articles ; validation (3 graines) F1 macro 0,791 → 0,847, top-3 85,7 % → 96,2 %, faux 4,3 → 3,0, environ 0,1 s par message ; gardé (règle : +5 points de F1 ou de top-3). Encodeur factice en CI, un test lent avec le vrai.
 
 **Décisions et raisons.**
 
@@ -1141,6 +1142,8 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 - **Le mode `--mixte` reste une option** : il double les erreurs franches sur les messages courts.
 - **Les articles sont proposés même quand le modèle hésite** : c'est là qu'était le gain (top-3 68,6 % → 85,7 %). La catégorie reste incertaine et le choix revient à l'utilisateur : un article choisi donne sa catégorie à la conversation.
 - **Les questions de diagnostic ne bloquent pas** : elles s'affichent à côté de l'article, et ne comptent pas comme une tentative. Les 30 conversations du TP5.1 donnent toujours 10 tickets.
+- **L'hybride H2 est retenu, pas MiniLM seul** : le notebook avait montré que MiniLM seul perdait 5 points. Le poids 1,0 est gardé : 2,0 ne gagnait que 0,3 point, moins que l'écart entre graines.
+- **Le mode de l'encodeur est gardé dans le modèle** : un modèle entraîné avec MiniLM sert MiniLM ; la CI entraîne avec l'encodeur factice. Changer une variable d'environnement ne peut pas casser un modèle déjà entraîné.
 
 **Problèmes rencontrés.**
 
@@ -1150,3 +1153,6 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 - Le premier essai du diagnostic faisait baisser le top-1 (75,2 % → 67,6 %) : les articles d'une réponse passaient devant dans l'ordre du fichier. Corrigé : même bonus pour tous, la similarité départage (79,0 %).
 - `data/questions_diagnostic.json` était ignoré par Git (`data/*`) : exception ajoutée dans `.gitignore`, sinon l'API ne démarrerait pas en CI.
 - Contrôle des fuites : « scanner jams on every page » (validation) était devenu un symptôme de la nouvelle base ; reformulé avant la mesure.
+- Mon commit de la phase 3 bis portait une autre identité Git (celle du poste, `anass aadoud`) : `test_each_member_has_committed` passait alors à tort, une personne comptant pour deux. L'auteur du commit a été corrigé (`--amend`, dépôt sans remote, rien de poussé) ; les commits suivants passent l'identité du membre A.
+- Encodeur : le cache borné perdait des vecteurs quand un lot dépassait sa taille (trouvé par le test) ; corrigé.
+- CI simulée (encodeur factice) : la règle des messages mêlés coupait deux pièges qui commencent par « The issue is… » ; corrigé, sans recul sur les messages mêlés.

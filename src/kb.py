@@ -55,14 +55,32 @@ def _similarites(texte: str) -> tuple[list[dict[str, str]], list[float]]:
     return articles, [float(s) for s in cosine_similarity(vectoriseur.transform([texte]), matrice)[0]]
 
 
+def mode_phrases() -> str | None:
+    """Le mode des vecteurs de phrases du modèle servi (minilm, factice), ou None : la recherche suit le modèle."""
+    from encodeur import mode_du_modele
+    from predict import charger_modele
+
+    try:
+        return mode_du_modele(charger_modele()["categorie"])
+    except FileNotFoundError:
+        return None
+
+
 @lru_cache(maxsize=1)
 def charger_index_recherche() -> tuple[FeatureUnion, object]:
-    """L'index de recherche des articles (TP5.2) : mots et n-grammes de caractères (fautes, formes voisines)."""
+    """L'index de recherche des articles (TP5.2) : mots et n-grammes de caractères (fautes, formes voisines) ;
+    phase 4 : et les vecteurs de phrases quand le modèle servi en a (top-3 de la validation 85,7 % -> 96,2 %)."""
+    from encodeur import Phrases
+
     articles = charger_base()[0]
-    vectoriseur = FeatureUnion([
+    parties = [
         ("mots", TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, stop_words="english")),
         ("caracteres", TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), sublinear_tf=True)),
-    ])
+    ]
+    mode = mode_phrases()
+    if mode is not None:
+        parties.append(("phrases", Phrases(1.0, mode)))
+    vectoriseur = FeatureUnion(parties)
     return vectoriseur, vectoriseur.fit_transform([f"{a['titre']} {a['symptomes']}" for a in articles])
 
 

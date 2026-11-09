@@ -1,9 +1,9 @@
 {
   "source": "demo",
-  "variante": "mots + caractères",
+  "variante": "mots + caractères + phrases (minilm)",
   "mixte": false,
   "poids_reel": null,
-  "date": "2026-11-08",
+  "date": "2026-11-09",
   "n_train": 1472,
   "n_test": 368,
   "classes": [
@@ -16,16 +16,16 @@
     "reseau",
     "securite"
   ],
-  "f1_macro": 0.9564,
-  "f1_macro_par_groupe": 0.6834,
-  "accuracy": 0.9565,
+  "f1_macro": 0.9646,
+  "f1_macro_par_groupe": 0.7357,
+  "accuracy": 0.9647,
   "rappel_par_classe": {
     "securite": 0.9565,
     "reseau": 0.9783,
-    "materiel": 0.9565,
-    "compte_acces": 0.8478,
-    "facturation": 1.0,
-    "logiciel": 0.9565,
+    "materiel": 0.9783,
+    "compte_acces": 0.8696,
+    "facturation": 0.9783,
+    "logiciel": 1.0,
     "panne_service": 0.9565
   },
   "priorite_f1_macro": 0.9524,

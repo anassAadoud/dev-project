@@ -21,6 +21,9 @@ annoncer un technicien pour un incident que l'agent règle dans la conversation.
 TP5.2 : la recherche couvre toute la base (src/kb.py, proposer) : /assist renvoie l'article retenu
 et les trois meilleurs (articles), y compris quand le modèle hésite ; la conversation lit aussi les
 questions de diagnostic de data/questions_diagnostic.json (questions).
+
+TP5.2, phase 4 : le modèle de catégorie et la recherche d'articles lisent aussi les vecteurs de phrases
+all-MiniLM-L6-v2 (src/encodeur.py). Ils sont chargés au démarrage : sans eux, l'API refuse de démarrer.
 """
 import json
 import sys
@@ -134,11 +137,16 @@ class SupportClassifier:
     def __init__(self) -> None:
         # Échoue immédiatement si le joblib ou la base manque : on ne démarre pas sans eux.
         modeles = charger_modele()
+        variante = (modeles.get("meta") or {}).get("variante") if isinstance(modeles, dict) else None
+        if variante:
+            self.model_name = f"tfidf-linearsvc (TP2, models/support.joblib ; {variante})"
         # Échoue aussi si le modèle connaît des étiquettes que le contrat ignore.
         verifier_etiquettes("categorie", modeles["categorie"].classes_, {*CORRESPONDANCE, HORS_SUJET})
         verifier_etiquettes("priorite", modeles["priorite"].classes_, set(PRIORITES))
         self.articles = len(charger_base()[0])
         self._questions = charger_questions()
+        # TP5.2 : charge l'encodeur de phrases et l'index des articles maintenant, pas à la première requête.
+        _proposer(partie_principale("printer offline"), "materiel")
 
     def predict(self, text: str) -> Prediction:
         """Renvoie la catégorie du contrat (ou INDETERMINE), la confiance, la priorité et un aperçu."""

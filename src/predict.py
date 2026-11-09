@@ -79,6 +79,8 @@ def partie_principale(texte: str) -> str:
     trouves = list(PIVOT.finditer(texte))
     if not trouves:
         return texte
+    if not texte[:trouves[-1].start()].strip():  # « The issue is that my account… » : rien à retirer avant
+        return texte
     reste = texte[trouves[-1].end():].strip(" ,;")
     return reste if len(reste.split()) >= 3 else texte
 
