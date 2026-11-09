@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pour importer ui
 import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
 
-from ui import client  # noqa: E402
+from ui import client, fichier  # noqa: E402
 
 BLEU = "#2a78d6"  # la teinte unique du graphique des catégories (une seule série)
 # Icônes Material de Streamlit (pas d'emojis) : une par catégorie, une pour l'agent.
@@ -281,22 +281,56 @@ with onglet_stats:
             st.caption("Tickets by status: " + ", ".join(f"{client.STATUTS[k]} {v}"
                                                          for k, v in s["tickets_par_statut"].items()))
 
+def traiter_fichier(televerse) -> None:
+    """Lit le CSV, classe chaque ticket (une seule fois par fichier : Streamlit relance le script à chaque clic)."""
+    lecture = fichier.lire(televerse.getvalue())
+    st.session_state["lot"] = {"nom": televerse.name, "taille": televerse.size, "lecture": lecture, "table": None}
+    if lecture.tickets is None:
+        return
+    textes = lecture.tickets[lecture.colonne].astype(str).tolist()
+    barre = st.progress(0.0, text=f"Sorting {len(textes)} tickets…")
+    reponses = client.assister_lot(session, textes,
+                                   lambda fait, total: barre.progress(fait / total, text=f"{fait} of {total} tickets"))
+    barre.empty()
+    st.session_state["lot"] |= {"textes": textes, "reponses": reponses, "table": fichier.resultats(lecture.tickets, reponses)}
+
+
 with onglet_lot:
-    fichier = st.file_uploader("CSV file of tickets with a text column", type="csv")
-    if fichier is not None:
-        tickets = pd.read_csv(fichier)
-        if "text" not in tickets.columns:
-            st.error("No text column in the file.")
+    st.caption("Upload a CSV file with a **text** column (comma or semicolon separated). The agent sorts each "
+               f"ticket, proposes an article, and flags critical cases. At most {fichier.MAX_LIGNES} tickets.")
+    televerse = st.file_uploader("CSV file of tickets", type="csv")
+    lot = st.session_state.get("lot")
+    if televerse is not None and (lot is None or (lot["nom"], lot["taille"]) != (televerse.name, televerse.size)):
+        traiter_fichier(televerse)
+        lot = st.session_state["lot"]
+    if televerse is not None and lot is not None:
+        lecture = lot["lecture"]
+        if lecture.erreur:
+            st.error(lecture.erreur)
         else:
-            reponses = client.assister_lot(session, tickets["text"].astype(str).tolist())
-            tickets["category"] = [client.VERDICTS[r.label] if r.ok and r.label else r.message for r in reponses]
-            tickets["confidence"] = [r.score for r in reponses]
-            tickets["priority"] = [r.priorite for r in reponses]
-            tickets["decision"] = [r.decision for r in reponses]
-            tickets["team"] = [r.groupe for r in reponses]
-            tickets["decided by"] = [client.SOURCES.get(r.corps.get("source", ""), "") for r in reponses]
-            st.dataframe(tickets, use_container_width=True)
-            st.write(client.resumer(reponses))
-            st.write(f"{client.a_escalader(reponses)} of {len(reponses)} tickets go to a technician.")
-            st.download_button("Download the results", tickets.to_csv(index=False),
-                               file_name="results.csv", mime="text/csv")
+            if lecture.avertissement:
+                st.warning(lecture.avertissement)
+            table, reponses = lot["table"], lot["reponses"]
+            a, b, c = st.columns(3)
+            a.metric("Tickets", len(table))
+            b.metric("To a technician", client.a_escalader(reponses))
+            graves = fichier.critiques(table)
+            c.metric("Critical", len(graves), help="Security incidents and general outages")
+            st.dataframe(table, use_container_width=True, hide_index=True)
+            with st.expander("Tickets by category"):
+                st.write(client.resumer(reponses))
+            st.download_button("Download the results", fichier.en_csv(table), file_name="results.csv",
+                               mime="text/csv", icon=":material/download:")
+            if len(graves) and not lot.get("crees"):
+                st.warning(f"{len(graves)} critical incident(s) (security or general outage): a technician should "
+                           "take them now. Create their tickets?", icon=":material/warning:")
+                confirme = st.checkbox(f"Yes, create {len(graves)} ticket(s) for the critical incidents",
+                                       key="confirmer_critiques")
+                if st.button("Create the tickets", type="primary", disabled=not confirme, key="creer_critiques"):
+                    indices = list(graves.index)
+                    crees = client.creer_tickets_critiques(session, [lot["textes"][i] for i in indices],
+                                                           [reponses[i] for i in indices])
+                    lot["crees"] = crees
+                    st.rerun()
+            for cree in lot.get("crees") or []:
+                (st.success if cree.ok else st.warning)(cree.message)

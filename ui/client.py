@@ -9,6 +9,7 @@ L'API renvoie un code par réponse de l'agent ; ce module le traduit (REPLIQUES)
 """
 import os
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import httpx
@@ -169,8 +170,21 @@ def creer_ticket(session: httpx.Client, texte: str, aide: Reponse | None = None,
                    message=f"Ticket {ticket['id']} created and sent to the {ticket['groupe']} team.")
 
 
-def assister_lot(session: httpx.Client, textes: list[str]) -> list[Reponse]:
-    return [assister(session, texte) for texte in textes]
+def assister_lot(session: httpx.Client, textes: list[str],
+                 progression: Callable[[int, int], None] | None = None) -> list[Reponse]:
+    """/assist pour chaque texte ; progression(fait, total) après chaque ticket (la barre de la page)."""
+    reponses = []
+    for numero, texte in enumerate(textes, start=1):
+        reponses.append(assister(session, texte))
+        if progression is not None:
+            progression(numero, len(textes))
+    return reponses
+
+
+def creer_tickets_critiques(session: httpx.Client, textes: list[str], aides: list[Reponse]) -> list[Reponse]:
+    """TP5.2 : les tickets des cas critiques d'un fichier, créés seulement après la confirmation de l'utilisateur."""
+    return [creer_ticket(session, texte, aide, raison="cas critique d'un fichier de tickets, confirmé par l'utilisateur")
+            for texte, aide in zip(textes, aides, strict=True)]
 
 
 def resumer(reponses: list[Reponse]) -> dict[str, int]:

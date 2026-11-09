@@ -235,3 +235,33 @@ sur 3 graines du jeu de démonstration et compare, sur la validation :
 - **Règle des messages mêlés** : la CI (encodeur factice) a montré que deux pièges étaient coupés (« The issue is
   that my account is disabled… » : la règle retirait l'annonce, il n'y a pourtant pas de première partie). Un message
   qui commence par l'annonce n'est plus coupé : messages mêlés 20 / 22 justes avant et après, pièges coupés 2 → 0.
+
+## Phase 5 : l'interface et les escalades
+
+**L'onglet « A file of tickets »** (`ui/fichier.py`, testé sans Streamlit par `tests/test_fichier.py`) :
+
+- **Lecture tolérante** : UTF-8 avec ou sans BOM, Windows-1252, Latin-1 ; séparateur virgule, point-virgule ou
+  tabulation, lu sur l'en-tête (les textes contiennent des virgules) ; colonne `text` sans tenir compte de la casse ;
+  un fichier d'une seule colonne garde chaque ligne entière ; lignes vides ignorées ; 5 Mo et 2 000 tickets au plus
+  (au-delà, un avertissement : seuls les 2 000 premiers sont traités). Les trois fichiers du dossier de travail se
+  lisent (`exemple_test.csv`, `exemple_test_2.csv` : 500 tickets ; l'export du 9 novembre : 1 000, ses anciennes
+  colonnes de résultat sont remplacées).
+- **Résultats** : catégorie, confiance, priorité, décision et sa raison en clair, équipe, qui a décidé, **l'article
+  proposé et ses étapes**, et une colonne `critical`. Une barre de progression pendant le tri ; le fichier n'est trié
+  qu'une fois (Streamlit relance le script à chaque clic). Téléchargement en UTF-8 avec BOM : Excel l'ouvre avec les
+  accents.
+- **Cas critiques** (sécurité, panne générale) : comptés à part ; la page propose leurs tickets **tout de suite**,
+  et ne les crée qu'après une case « Yes, create N ticket(s) » cochée puis le bouton (`client.creer_tickets_critiques`).
+  Aucun ticket n'est créé par le seul tri du fichier (vérifié par un test).
+
+**La conversation** (rappel des règles du TP5.1, inchangées et testées) : jamais de ticket au premier message ; un
+cas critique propose le ticket dès le premier message, avec les étapes de l'article, et attend la confirmation ; un
+seul ticket par conversation, pré-rempli (résumé, catégorie, étapes déjà essayées). Nouveau en phase 3 bis : un
+article critique choisi parmi les suggestions, ou la réponse « Everyone in the office » au diagnostic, propose aussi
+le ticket critique, toujours confirmé.
+
+**Ce que l'analyse de l'export du 9 novembre avait montré** (1 000 tickets triés par le modèle du TP5.1) : 211
+incidents informatiques envoyés au tri, dont des cas de sécurité (« An employee clicked a phishing link and entered
+their credentials ») ; « ransomware note on my screen » encore indéterminé (confiance 0,60, juste sous le seuil).
+Le modèle de la phase 4 réduit l'abstention (22,9 % de la validation au lieu de 29,5 %) ; dans le fichier, les
+incidents indéterminés partent toujours au tri N1, jamais perdus.

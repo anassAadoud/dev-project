@@ -1134,6 +1134,7 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 - **Phase 3, la décision** : classe hors sujet, panne générale, messages mêlés, priorité à part ; validation 0,663, F1 macro 0,776, priorité 0,870.
 - **Phase 3 bis, la qualité des réponses** : recherche dans toute la base (3 articles, bonus de catégorie), articles aussi quand le modèle hésite, base de 57 articles aux étapes vérifiables et sourcées, questions de diagnostic ; validation : top-1 des articles 52,4 % → 75,2 %, top-3 58,1 % → 85,7 % (79,0 % de top-1 après une réponse au diagnostic) ; classement 0,654 → 0,686, F1 macro 0,768 → 0,791 (3 graines).
 - **Phase 4, l'hybride** : TF-IDF + vecteurs all-MiniLM-L6-v2 dans le classement et la recherche d'articles ; validation (3 graines) F1 macro 0,791 → 0,847, top-3 85,7 % → 96,2 %, faux 4,3 → 3,0, environ 0,1 s par message ; gardé (règle : +5 points de F1 ou de top-3). Encodeur factice en CI, un test lent avec le vrai.
+- **Phase 5, l'interface** : onglet fichier (lecture tolérante d'un CSV d'Excel, article et étapes par ticket, colonne critical, téléchargement pour Excel) ; tickets des cas critiques proposés tout de suite et créés après confirmation.
 
 **Décisions et raisons.**
 
