@@ -187,10 +187,13 @@ def a_escalader(reponses: list[Reponse]) -> int:
 # --- TP5.1 : la conversation, le suivi, les avis, les statistiques ---
 
 def discuter(session: httpx.Client, action: str = "message", conversation_id: str | None = None,
-             texte: str | None = None, categorie: str | None = None, etapes_faites: list[str] | None = None) -> Reponse:
-    """POST /chat : un tour de conversation. Sans conversation_id, une nouvelle conversation commence."""
+             texte: str | None = None, categorie: str | None = None, etapes_faites: list[str] | None = None,
+             article_id: str | None = None, question_id: str | None = None, option_id: str | None = None) -> Reponse:
+    """POST /chat : un tour de conversation. Sans conversation_id, une nouvelle conversation commence.
+    TP5.2 : article_id choisit un article suggéré ; question_id et option_id répondent au diagnostic."""
     corps = {"conversation_id": conversation_id, "action": action, "text": texte, "categorie": categorie,
-             "etapes_faites": etapes_faites or []}
+             "etapes_faites": etapes_faites or [], "article_id": article_id, "question_id": question_id,
+             "option_id": option_id}
     try:
         r = session.post("/chat", json=corps)
     except httpx.TransportError:

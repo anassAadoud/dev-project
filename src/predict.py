@@ -54,6 +54,9 @@ GENERIQUES = frozenset({
     "support", "need", "want", "know", "ok", "okay", "anymore", "really", "weird", "strange", "since", "morning",
     "does", "did", "doing", "done", "get", "got", "getting", "keep", "keeps", "seems", "seem", "happen", "happens",
     "happened", "going", "anything", "something", "everything", "nothing", "guys", "sir", "madam", "dear",
+    # les mots du temps disent quand, pas quoi (TP5.2)
+    "week", "weeks", "day", "days", "yesterday", "tomorrow", "tonight", "hour", "hours", "minute", "minutes", "time",
+    "times", "same", "usual", "like", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend",
 })
 
 

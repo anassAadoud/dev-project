@@ -73,9 +73,12 @@ def test_message_trop_vague_n_est_jamais_tranche(client, texte):
     assert client.post("/predict", json={"text": texte}).json()["label"] == "INDETERMINE"
 
 
-@pytest.mark.parametrize("texte", ["phishing??", "virus??", "printer offline"])
-def test_un_seul_mot_utile_suffit(client, texte):
-    assert client.post("/predict", json={"text": texte}).json()["label"] != "INDETERMINE"
+@pytest.mark.parametrize("texte", ["ransomware!!", "malware??", "printer offline"])
+def test_un_seul_mot_utile_n_est_pas_vague(texte):
+    """Un seul mot qui décrit l'incident suffit : la règle des messages vagues ne s'applique pas (TP5.2)."""
+    from predict import charger_modele, est_vague, vectoriseur_mots
+
+    assert not est_vague(texte, vectoriseur_mots(charger_modele()["categorie"]))
 
 
 @pytest.mark.parametrize("texte", ["Mon VPN ne se connecte plus depuis ce matin", "xqzvb wlkptr grombu"])

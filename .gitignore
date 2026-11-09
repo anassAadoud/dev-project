@@ -18,6 +18,8 @@ data/*
 !data/exemples_incidents.csv
 # TP3 : la base de connaissances est écrite à la main, elle se versionne
 !data/base_connaissances.csv
+# TP5.2 : les questions de diagnostic, écrites à la main comme la base
+!data/questions_diagnostic.json
 mlruns/
 mlflow.db
 

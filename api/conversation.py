@@ -16,6 +16,13 @@ Le diagnostic du TP5.1 (src/bilan_tickets.py) a montré que l'agent créait un t
 Une tentative sans succès est un article « pas résolu », ou une question de précision qui n'a
 mené à aucun article. Ce module ne connaît ni le modèle, ni la base, ni le stockage : ils lui
 sont passés par `outils` (le SupportClassifier de api/model.py, ou un faux dans les tests).
+
+TP5.2 : la recherche couvre toute la base. L'agent montre l'article retenu et deux autres
+(suggestions), que l'utilisateur peut choisir ; quand le modèle hésite, il montre les trois
+articles les plus proches à côté des boutons de catégories. Une question de diagnostic par
+catégorie (« seulement vous ou tout le bureau ? ») est proposée à côté de l'article : la réponse
+fait passer des articles devant, ou change la catégorie (tout le bureau -> panne -> ticket proposé,
+toujours confirmé). Ni le choix d'un article ni une réponse de diagnostic ne comptent comme une tentative.
 """
 import re
 from collections.abc import Iterable, Mapping
@@ -78,6 +85,10 @@ class Conversation(TypedDict):
     tentatives: int
     precision_demandee: bool
     critique_propose: bool
+    suggestions: list[dict]
+    preferes: list[str]
+    diagnostics: list[dict]
+    question: dict | None
     phase: Phase
     code: Code
     tours: list[Tour]
@@ -89,7 +100,10 @@ class Outils(Protocol):
 
     def predict(self, text: str) -> Mapping[str, Any]: ...
 
-    def chercher(self, text: str, categorie: str, exclus: Iterable[str]) -> dict | None: ...
+    def proposer(self, text: str, categorie: str | None, exclus: Iterable[str],
+                 preferes: Iterable[str]) -> list[dict]: ...
+
+    def questions(self, categorie: str) -> list[dict]: ...
 
     def creer_ticket_conversation(self, conv: Conversation) -> dict: ...
 
@@ -116,21 +130,56 @@ def resumer(conv: Conversation, longueur: int = 160) -> str:
 def actions_possibles(conv: Conversation) -> list[Action]:
     """Les réponses que la page peut proposer à l'utilisateur maintenant."""
     phase = conv["phase"]
+    extras: list[Action] = []
+    if conv.get("suggestions") and phase in {"solution", "precision"}:
+        extras.append("choisir_article")
+    if conv.get("question") and phase in {"solution", "precision", "proposition_ticket"}:
+        extras.append("diagnostic")
     if phase == "solution":
-        return ["resolu", "pas_resolu", "demander_ticket", "message"]
+        return ["resolu", "pas_resolu", "demander_ticket", "message", *extras]
     if phase == "precision":
-        return ["categorie", "message", "demander_ticket"]
+        return ["categorie", "message", "demander_ticket", *extras]
     if phase == "proposition_ticket":
         choix: list[Action] = ["confirmer_ticket", "refuser_ticket"]
-        return [*choix, "resolu", "message"] if conv["article"] else [*choix, "message"]
+        return [*choix, "resolu", "message", *extras] if conv["article"] else [*choix, "message", *extras]
     return []  # résolue ou ticket créé : la conversation est terminée
 
 
 def nouvelle(identifiant: str) -> Conversation:
     return {"id": identifiant, "textes": [], "label": "INDETERMINE", "score": 0.0, "priorite": "low", "connus": 0.0, "source": "aucune",
             "categorie": None, "categorie_choisie": False, "article": None, "essais": [], "tentatives": 0,
-            "precision_demandee": False, "critique_propose": False, "phase": "precision", "code": "choisir_categorie",
+            "precision_demandee": False, "critique_propose": False, "suggestions": [], "preferes": [],
+            "diagnostics": [], "question": None, "phase": "precision", "code": "choisir_categorie",
             "tours": [], "ticket_id": None}
+
+
+def completer(conv: Conversation) -> Conversation:
+    """Une conversation enregistrée avant le TP5.2 reçoit les champs ajoutés depuis."""
+    conv.setdefault("suggestions", [])
+    conv.setdefault("preferes", [])
+    conv.setdefault("diagnostics", [])
+    conv.setdefault("question", None)
+    return conv
+
+
+def _trouver(conv: Conversation, outils: Outils, categorie: str | None) -> dict | None:
+    """L'article retenu ; les autres articles proches vont dans les suggestions.
+    Sans catégorie, aucun article n'est retenu : les trois meilleurs sont seulement suggérés."""
+    exclus = [e["article_id"] for e in conv["essais"]]
+    trouves = outils.proposer(texte_complet(conv), categorie, exclus, conv["preferes"])
+    if categorie is None:
+        conv["suggestions"] = trouves
+        return None
+    conv["suggestions"] = trouves[1:]
+    return trouves[0] if trouves else None
+
+
+def _question_suivante(conv: Conversation, outils: Outils) -> dict | None:
+    """La première question de diagnostic de la catégorie pas encore posée, ou rien."""
+    if conv["categorie"] is None or conv["phase"] in {"resolu", "ticket"}:
+        return None
+    posees = {d["question"] for d in conv["diagnostics"]}
+    return next((q for q in outils.questions(conv["categorie"]) if q["id"] not in posees), None)
 
 
 def _classer(conv: Conversation, outils: Outils) -> None:
@@ -149,8 +198,7 @@ def _proposer_ticket(conv: Conversation, code: Code) -> None:
 def _proposer_solution(conv: Conversation, outils: Outils) -> None:
     """Un article pas encore essayé ; sinon une question de précision ; après MAX_TENTATIVES, le ticket."""
     assert conv["categorie"] is not None
-    exclus = [e["article_id"] for e in conv["essais"]]
-    article = outils.chercher(texte_complet(conv), conv["categorie"], exclus)
+    article = _trouver(conv, outils, conv["categorie"])
     if article is not None:
         conv["article"], conv["phase"] = article, "solution"
         conv["code"] = "autre_solution" if conv["essais"] else "solution"
@@ -165,19 +213,24 @@ def _proposer_solution(conv: Conversation, outils: Outils) -> None:
     conv["precision_demandee"], conv["phase"], conv["code"] = True, "precision", "question_precision"
 
 
-def _repondre(conv: Conversation, outils: Outils) -> None:
+def _repondre(conv: Conversation, outils: Outils, garder_critique: bool = False) -> None:
     """Après un message ou un choix de catégorie : critique, hésitation, ou solution."""
     if conv["categorie"] is None:
         conv["article"], conv["precision_demandee"], conv["phase"] = None, True, "precision"
+        conv["suggestions"] = []
         if conv.get("source") == "hors_sujet":
             conv["code"] = "hors_sujet"
-        else:
-            conv["code"] = "reformuler" if conv["connus"] < SEUIL_VOCABULAIRE else "choisir_categorie"
+        elif conv["connus"] < SEUIL_VOCABULAIRE:
+            conv["code"] = "reformuler"
+        else:  # TP5.2 : le modèle hésite, mais les articles les plus proches sont montrés
+            conv["code"] = "choisir_categorie"
+            _trouver(conv, outils, None)
         return
-    if conv["categorie"] in CRITIQUES and not conv["critique_propose"]:
+    if conv["categorie"] in CRITIQUES and (not conv["critique_propose"] or (garder_critique and conv["code"] == "critique")):
         # Les étapes de l'article s'affichent quand même : l'utilisateur agit en attendant le technicien.
+        # Une réponse de diagnostic sur un cas critique garde la proposition de ticket, avec un meilleur article.
         conv["critique_propose"] = True
-        conv["article"] = outils.chercher(texte_complet(conv), conv["categorie"], [])
+        conv["article"] = _trouver(conv, outils, conv["categorie"])
         _proposer_ticket(conv, "critique")
         return
     _proposer_solution(conv, outils)
@@ -190,9 +243,42 @@ def _verifier(conv: Conversation, action: Action) -> None:
         raise ActionRefusee(f"action « {action} » impossible quand la conversation est en phase « {conv['phase']} »")
 
 
+def _choisir_article(conv: Conversation, article_id: str | None) -> None:
+    """L'utilisateur choisit un des articles suggérés : sa catégorie devient celle de la conversation."""
+    article = next((a for a in conv["suggestions"] if a["id"] == article_id), None)
+    if article is None:
+        raise ActionRefusee(f"l'article « {article_id} » n'est pas proposé dans cette conversation")
+    conv["categorie"], conv["categorie_choisie"] = article["categorie"], True
+    conv["suggestions"] = [a for a in conv["suggestions"] if a["id"] != article_id]
+    conv["article"], conv["precision_demandee"] = article, False
+    if article["categorie"] in CRITIQUES and not conv["critique_propose"]:
+        conv["critique_propose"] = True
+        _proposer_ticket(conv, "critique")
+        return
+    conv["phase"], conv["code"] = "solution", "autre_solution" if conv["essais"] else "solution"
+
+
+def _diagnostiquer(conv: Conversation, outils: Outils, question_id: str | None, option_id: str | None) -> None:
+    """La réponse à la question de diagnostic : des articles passent devant, ou la catégorie change."""
+    question = conv["question"]
+    if question is None or question["id"] != question_id:
+        raise ActionRefusee(f"la question « {question_id} » n'est pas posée maintenant")
+    option = next((o for o in question["options"] if o["id"] == option_id), None)
+    if option is None:
+        raise ActionRefusee(f"« {option_id} » n'est pas une réponse de la question « {question_id} »")
+    conv["diagnostics"].append({"question": question["id"], "option": option["id"], "label": option["label"]})
+    effet = option.get("effet") or {}
+    if effet.get("categorie"):
+        conv["categorie"], conv["categorie_choisie"] = effet["categorie"], True
+    conv["preferes"] = list(effet.get("articles") or [])
+    _repondre(conv, outils, garder_critique=True)
+
+
 def avancer(conv: Conversation, action: Action, outils: Outils, texte: str | None = None,
-            categorie: Categorie | None = None, etapes_faites: Iterable[str] = ()) -> Conversation:
+            categorie: Categorie | None = None, etapes_faites: Iterable[str] = (), article_id: str | None = None,
+            question_id: str | None = None, option_id: str | None = None) -> Conversation:
     """Un tour de conversation : applique l'action de l'utilisateur, renvoie le nouvel état."""
+    completer(conv)
     premier = not conv["tours"]
     if premier and action != "message":
         raise ActionRefusee("une conversation commence par un message")
@@ -206,7 +292,7 @@ def avancer(conv: Conversation, action: Action, outils: Outils, texte: str | Non
         _classer(conv, outils)
         if demande_humain(texte):
             if conv["categorie"] is not None and conv["article"] is None:
-                conv["article"] = outils.chercher(texte_complet(conv), conv["categorie"], [])
+                conv["article"] = _trouver(conv, outils, conv["categorie"])
             _proposer_ticket(conv, "demande")
         else:
             _repondre(conv, outils)
@@ -215,6 +301,10 @@ def avancer(conv: Conversation, action: Action, outils: Outils, texte: str | Non
             raise ActionRefusee("choisir une catégorie demande la catégorie")
         conv["categorie"], conv["categorie_choisie"] = categorie, True
         _repondre(conv, outils)
+    elif action == "choisir_article":
+        _choisir_article(conv, article_id)
+    elif action == "diagnostic":
+        _diagnostiquer(conv, outils, question_id, option_id)
     elif action == "resolu":
         conv["phase"], conv["code"] = "resolu", "resolu"
     elif action == "pas_resolu":
@@ -237,6 +327,9 @@ def avancer(conv: Conversation, action: Action, outils: Outils, texte: str | Non
         conv["phase"] = "solution" if conv["article"] else "precision"
         conv["code"] = "ticket_refuse"
 
+    if conv["phase"] not in {"solution", "precision"}:
+        conv["suggestions"] = []  # une proposition de ticket ou une conversation finie : plus de choix d'article
+    conv["question"] = _question_suivante(conv, outils)
     conv["tours"].append({"tour": len(conv["tours"]) + 1, "action": action, "code": conv["code"],
                           "le": datetime.now(timezone.utc).isoformat(timespec="seconds")})
     return conv

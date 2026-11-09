@@ -1,0 +1,86 @@
+{
+  "_lisez_moi": "TP5.2 : questions de diagnostic, 2 ou 3 par catégorie. Une réponse fait passer des articles devant (articles), ou change la catégorie (categorie) : une panne générale ou un cas de sécurité déclenche la proposition de ticket, toujours confirmée.",
+  "reseau": [
+    {"id": "reseau_portee", "question": "Is it only you, or everyone around you?", "options": [
+      {"id": "moi", "label": "Only me", "effet": {}},
+      {"id": "tous", "label": "Everyone in the office", "effet": {"categorie": "panne_service"}}]},
+    {"id": "reseau_connexion", "question": "How are you connected?", "options": [
+      {"id": "wifi", "label": "Wi-Fi", "effet": {"articles": ["KB-NET-02", "KB-NET-07"]}},
+      {"id": "cable", "label": "Network cable", "effet": {"articles": ["KB-NET-04"]}},
+      {"id": "vpn", "label": "VPN, outside the office", "effet": {"articles": ["KB-NET-01", "KB-NET-08"]}}]},
+    {"id": "reseau_symptome", "question": "What exactly happens?", "options": [
+      {"id": "lent", "label": "It is slow", "effet": {"articles": ["KB-NET-06", "KB-NET-02"]}},
+      {"id": "coupe", "label": "It keeps dropping", "effet": {"articles": ["KB-NET-01", "KB-NET-02"]}},
+      {"id": "interne", "label": "Only internal sites or drives fail", "effet": {"articles": ["KB-NET-08", "KB-NET-05", "KB-NET-03"]}}]}
+  ],
+  "materiel": [
+    {"id": "materiel_appareil", "question": "Which device is affected?", "options": [
+      {"id": "imprimante", "label": "Printer", "effet": {"articles": ["KB-HW-01"]}},
+      {"id": "scanner", "label": "Scanner", "effet": {"articles": ["KB-HW-05"]}},
+      {"id": "ecran", "label": "Screen or monitor", "effet": {"articles": ["KB-HW-07", "KB-HW-03"]}},
+      {"id": "clavier", "label": "Keyboard, mouse or touchpad", "effet": {"articles": ["KB-HW-08", "KB-HW-03"]}},
+      {"id": "audio", "label": "Webcam, headset or microphone", "effet": {"articles": ["KB-HW-04"]}},
+      {"id": "portable", "label": "The laptop itself (power, battery, heat)", "effet": {"articles": ["KB-HW-06", "KB-HW-02"]}}]},
+    {"id": "materiel_autre_poste", "question": "Does the device work on another computer?", "options": [
+      {"id": "oui", "label": "Yes", "effet": {"articles": ["KB-HW-03", "KB-HW-08"]}},
+      {"id": "non", "label": "No, it fails there too", "effet": {}}]}
+  ],
+  "compte_acces": [
+    {"id": "compte_symptome", "question": "What happens when you sign in?", "options": [
+      {"id": "verrouille", "label": "My account is locked", "effet": {"articles": ["KB-ACC-01"]}},
+      {"id": "mot_de_passe", "label": "Password expired or forgotten", "effet": {"articles": ["KB-ACC-02"]}},
+      {"id": "code", "label": "The two-factor code fails", "effet": {"articles": ["KB-ACC-04"]}},
+      {"id": "refuse", "label": "Access denied to a folder, site or app", "effet": {"articles": ["KB-ACC-03", "KB-ACC-07", "KB-ACC-06"]}},
+      {"id": "boite", "label": "A shared mailbox does not open", "effet": {"articles": ["KB-ACC-05"]}},
+      {"id": "nouveau", "label": "New account or admin rights", "effet": {"articles": ["KB-ACC-08"]}}]},
+    {"id": "compte_suspect", "question": "Did you see a sign-in you don't recognise?", "options": [
+      {"id": "non", "label": "No", "effet": {}},
+      {"id": "oui", "label": "Yes, a sign-in I did not make", "effet": {"categorie": "securite", "articles": ["KB-SEC-03"]}}]}
+  ],
+  "facturation": [
+    {"id": "facturation_quoi", "question": "What is wrong with the billing?", "options": [
+      {"id": "montant", "label": "Charged twice or wrong amount", "effet": {"articles": ["KB-BIL-01", "KB-BIL-04"]}},
+      {"id": "paiement", "label": "Payment declined or card expired", "effet": {"articles": ["KB-BIL-02", "KB-BIL-08"]}},
+      {"id": "remboursement", "label": "Refund or receipt", "effet": {"articles": ["KB-BIL-03"]}},
+      {"id": "facture", "label": "Wrong tax, address or currency", "effet": {"articles": ["KB-BIL-05", "KB-BIL-07"]}},
+      {"id": "retard", "label": "Shown as unpaid although paid", "effet": {"articles": ["KB-BIL-06"]}}]},
+    {"id": "facturation_licences", "question": "Is it about the number of licences or users?", "options": [
+      {"id": "oui", "label": "Yes", "effet": {"articles": ["KB-BIL-04"]}},
+      {"id": "non", "label": "No", "effet": {}}]}
+  ],
+  "logiciel": [
+    {"id": "logiciel_portee", "question": "Is it only you, or everyone using this application?", "options": [
+      {"id": "moi", "label": "Only me", "effet": {}},
+      {"id": "tous", "label": "Everyone", "effet": {"categorie": "panne_service"}}]},
+    {"id": "logiciel_application", "question": "Which application is it?", "options": [
+      {"id": "outlook", "label": "Outlook", "effet": {"articles": ["KB-SW-02", "KB-SW-07"]}},
+      {"id": "office", "label": "Excel, Word or PowerPoint", "effet": {"articles": ["KB-SW-03", "KB-SW-06"]}},
+      {"id": "teams", "label": "Teams or a meeting", "effet": {"articles": ["KB-SW-05", "KB-SW-01"]}},
+      {"id": "onedrive", "label": "OneDrive", "effet": {"articles": ["KB-SW-08"]}},
+      {"id": "installation", "label": "An installation or Windows Update", "effet": {"articles": ["KB-SW-04", "KB-SW-09"]}},
+      {"id": "autre", "label": "Another application", "effet": {"articles": ["KB-SW-01"]}}]}
+  ],
+  "securite": [
+    {"id": "securite_action", "question": "Did you click a link, open a file or type your password?", "options": [
+      {"id": "oui", "label": "Yes", "effet": {"articles": ["KB-SEC-01", "KB-SEC-02"]}},
+      {"id": "non", "label": "No, I only saw it", "effet": {"articles": ["KB-SEC-01", "KB-SEC-08"]}}]},
+    {"id": "securite_quoi", "question": "What did you notice?", "options": [
+      {"id": "mail", "label": "A suspicious email or message", "effet": {"articles": ["KB-SEC-01", "KB-SEC-08"]}},
+      {"id": "alerte", "label": "An antivirus alert or encrypted files", "effet": {"articles": ["KB-SEC-02"]}},
+      {"id": "connexion", "label": "A sign-in I did not make", "effet": {"articles": ["KB-SEC-03", "KB-SEC-07"]}},
+      {"id": "appareil", "label": "A lost device or an unknown USB key", "effet": {"articles": ["KB-SEC-06", "KB-SEC-04"]}},
+      {"id": "programme", "label": "A program I did not install", "effet": {"articles": ["KB-SEC-05"]}}]}
+  ],
+  "panne_service": [
+    {"id": "panne_service_quoi", "question": "Which service is down?", "options": [
+      {"id": "mail", "label": "Email or file server", "effet": {"articles": ["KB-OUT-02"]}},
+      {"id": "connexion", "label": "Sign-in for everyone", "effet": {"articles": ["KB-OUT-04"]}},
+      {"id": "collaboration", "label": "Teams or SharePoint", "effet": {"articles": ["KB-OUT-05"]}},
+      {"id": "metier", "label": "A business application (ERP, CRM, database)", "effet": {"articles": ["KB-OUT-03", "KB-OUT-06"]}},
+      {"id": "clients", "label": "The customer website or payments", "effet": {"articles": ["KB-OUT-08"]}},
+      {"id": "telephone", "label": "Phones", "effet": {"articles": ["KB-OUT-07"]}}]},
+    {"id": "panne_service_portee", "question": "Is it really everyone?", "options": [
+      {"id": "tous", "label": "Yes, everyone", "effet": {}},
+      {"id": "moi", "label": "No, only me or my team", "effet": {"categorie": "logiciel"}}]}
+  ]
+}

@@ -177,7 +177,7 @@ async def chat(request: ChatRequest) -> dict:
     clf = _classifier()
     try:
         result = clf.discuter(request.conversation_id, request.action, request.text, request.categorie,
-                              request.etapes_faites)
+                              request.etapes_faites, request.article_id, request.question_id, request.option_id)
     except ConversationInconnue:
         raise HTTPException(status_code=404, detail="Conversation introuvable") from None
     except ActionRefusee as refus:

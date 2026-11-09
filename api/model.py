@@ -17,7 +17,12 @@ modèle, la base (articles déjà essayés exclus) et la création du ticket. /a
 suivent la même politique que la conversation (decider_tp51) : un fichier de tickets ne doit pas
 annoncer un technicien pour un incident que l'agent règle dans la conversation. Les règles du TP4
 (decider) restent, pour rejouer la mesure « avant » de src/bilan_tickets.py.
+
+TP5.2 : la recherche couvre toute la base (src/kb.py, proposer) : /assist renvoie l'article retenu
+et les trois meilleurs (articles), y compris quand le modèle hésite ; la conversation lit aussi les
+questions de diagnostic de data/questions_diagnostic.json (questions).
 """
+import json
 import sys
 import uuid
 from collections.abc import Iterable
@@ -33,6 +38,7 @@ sys.path.insert(0, str(RACINE / "src"))
 from historique import charger_historique, plus_semblable  # noqa: E402
 from kb import article_le_plus_proche, categories_proches, charger_base  # noqa: E402
 from kb import chercher as _chercher  # noqa: E402
+from kb import proposer as _proposer  # noqa: E402
 from predict import charger_modele, est_vague, partie_principale, vectoriseur_mots  # noqa: E402
 from predict import predict as _predict  # noqa: E402
 from priorite import impact_general  # noqa: E402
@@ -56,6 +62,29 @@ CORRESPONDANCE: dict[str, Categorie] = {
 PRIORITES: dict[str, Priorite] = {"high": "high", "medium": "medium", "low": "low"}
 # TP5.2 : la classe « pas un incident informatique » du modèle ; l'API répond INDETERMINE, source hors_sujet.
 HORS_SUJET = "hors_sujet"
+
+# TP5.2 : 2 ou 3 questions de diagnostic par catégorie ; chaque réponse renvoie vers des articles de la base.
+QUESTIONS = RACINE / "data" / "questions_diagnostic.json"
+
+
+def charger_questions(chemin: Path = QUESTIONS) -> dict[str, list[dict]]:
+    """Les questions par catégorie ; refuse un fichier dont une réponse cite un article ou une catégorie inconnus."""
+    with chemin.open(encoding="utf-8") as f:
+        brutes = json.load(f)
+    questions = {c: q for c, q in brutes.items() if not c.startswith("_")}
+    ids = {a["id"] for a in charger_base()[0]}
+    for categorie, liste in questions.items():
+        if categorie not in CORRESPONDANCE:
+            raise ValueError(f"questions de diagnostic : catégorie inconnue {categorie!r}")
+        for question in liste:
+            for option in question["options"]:
+                effet = option.get("effet") or {}
+                inconnus = set(effet.get("articles") or []) - ids
+                if inconnus or effet.get("categorie", categorie) not in CORRESPONDANCE:
+                    raise ValueError(f"questions de diagnostic : {question['id']}/{option['id']} cite "
+                                     f"{sorted(inconnus) or effet.get('categorie')}, absent de la base")
+    return questions
+
 
 # Un groupe de techniciens par catégorie (fiche cas1) ; l'incident incertain va au tri.
 # Les noms sont en anglais : la page les montre à l'utilisateur (TP5).
@@ -90,6 +119,7 @@ class Assistance(Prediction):
     raison: str
     groupe: str
     article: dict | None
+    articles: list[dict]
 
 
 class ConversationInconnue(KeyError):
@@ -108,6 +138,7 @@ class SupportClassifier:
         verifier_etiquettes("categorie", modeles["categorie"].classes_, {*CORRESPONDANCE, HORS_SUJET})
         verifier_etiquettes("priorite", modeles["priorite"].classes_, set(PRIORITES))
         self.articles = len(charger_base()[0])
+        self._questions = charger_questions()
 
     def predict(self, text: str) -> Prediction:
         """Renvoie la catégorie du contrat (ou INDETERMINE), la confiance, la priorité et un aperçu."""
@@ -135,15 +166,25 @@ class SupportClassifier:
     def assist(self, text: str) -> Assistance:
         """Classe l'incident, cherche un article, puis applique les règles d'escalade."""
         prediction = self.predict(text)
-        article = None if prediction["label"] == "INDETERMINE" else _chercher(partie_principale(text), prediction["label"])
+        indetermine = prediction["label"] == "INDETERMINE"
+        articles = ([] if prediction["source"] == "hors_sujet" else
+                    _proposer(partie_principale(text), None if indetermine else prediction["label"]))
+        article = None if indetermine or not articles else articles[0]
         decision, motif, raison = decider_tp51(prediction, article)
         return {**prediction, "decision": decision, "motif": motif, "raison": raison,
-                "groupe": GROUPES[prediction["label"]], "article": article}
+                "groupe": GROUPES[prediction["label"]], "article": article, "articles": articles}
 
     # --- Les outils de la conversation (TP5.1) ---
 
     def chercher(self, text: str, categorie: str, exclus: Iterable[str] = ()) -> dict | None:
         return _chercher(text, categorie, exclus)
+
+    def proposer(self, text: str, categorie: str | None, exclus: Iterable[str] = (),
+                 preferes: Iterable[str] = ()) -> list[dict]:
+        return _proposer(partie_principale(text), categorie, exclus=exclus, preferes=preferes)
+
+    def questions(self, categorie: str) -> list[dict]:
+        return self._questions.get(categorie, [])
 
     def creer_ticket_conversation(self, conv: Conversation) -> dict:
         """Le seul ticket de la conversation, pré-rempli : résumé, catégorie, étapes déjà essayées."""
@@ -167,7 +208,8 @@ class SupportClassifier:
                 or plus_semblable(texte, list(charger_historique()), conv["categorie"]))
 
     def discuter(self, conversation_id: str | None, action: Action, text: str | None = None,
-                 categorie: Categorie | None = None, etapes_faites: Iterable[str] = ()) -> dict:
+                 categorie: Categorie | None = None, etapes_faites: Iterable[str] = (), article_id: str | None = None,
+                 question_id: str | None = None, option_id: str | None = None) -> dict:
         """Un tour de conversation : charge l'état, applique la politique, sauvegarde, prépare la réponse."""
         if conversation_id is None:
             conv = conversation.nouvelle(f"CNV-{uuid.uuid4().hex[:8].upper()}")
@@ -176,13 +218,17 @@ class SupportClassifier:
             if trouvee is None:
                 raise ConversationInconnue(conversation_id)
             conv = trouvee  # type: ignore[assignment]  # un dict relu du fichier, de la forme Conversation
-        conv = conversation.avancer(conv, action, self, texte=text, categorie=categorie, etapes_faites=etapes_faites)
+        conv = conversation.avancer(conv, action, self, texte=text, categorie=categorie, etapes_faites=etapes_faites,
+                                    article_id=article_id, question_id=question_id, option_id=option_id)
         stockage.ajouter("conversations", dict(conv))
         en_cours = conv["phase"] not in {"resolu", "ticket"}
         return {
             "conversation_id": conv["id"], "tour": len(conv["tours"]), "phase": conv["phase"], "code": conv["code"],
             "label": conv["label"], "score": conv["score"], "priorite": conv["priorite"],
-            "categorie": conv["categorie"], "article": conv["article"],
+            "categorie": conv["categorie"], "article": conv["article"], "suggestions": conv["suggestions"],
+            "question": ({"id": conv["question"]["id"], "question": conv["question"]["question"],
+                          "options": [{"id": o["id"], "label": o["label"]} for o in conv["question"]["options"]]}
+                         if conv["question"] else None),
             "categories": categories_proches(conversation.texte_complet(conv)) if conv["phase"] == "precision" else [],
             "choix": conversation.actions_possibles(conv), "tentatives": conv["tentatives"], "essais": conv["essais"],
             "ticket": tickets.lire(conv["ticket_id"]) if conv["ticket_id"] else None,

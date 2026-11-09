@@ -116,6 +116,25 @@ def afficher_reponse(r: client.Reponse, derniere: bool) -> None:
                 st.markdown(f"{numero}. {etape}")
         st.markdown("</div>", unsafe_allow_html=True)
         st.caption(f"Ask for a technician if: {r.article['escalade_si']}")
+    if r.corps.get("suggestions") and "choisir_article" in r.choix and derniere:
+        titre = "Does one of these articles match your problem?" if not r.article else "Other articles that may help"
+        st.caption(titre)
+        for suggestion in r.corps["suggestions"]:
+            st.button(f"{suggestion['titre']} ({libelle(suggestion.get('categorie'))})", icon=":material/article:",
+                      key=f"sugg-{r.conversation_id}-{r.tour}-{suggestion['id']}", use_container_width=True,
+                      on_click=envoyer, args=("choisir_article", f"Let's try: {suggestion['titre']}"),
+                      kwargs={"article_id": suggestion["id"]})
+    question = r.corps.get("question")
+    if question and "diagnostic" in r.choix and derniere:
+        st.caption(f"To find the right fix: **{question['question']}**")
+        colonnes = st.columns(min(len(question["options"]), 3))
+        for i, option in enumerate(question["options"]):
+            colonnes[i % len(colonnes)].button(
+                option["label"], key=f"diag-{r.conversation_id}-{r.tour}-{question['id']}-{option['id']}",
+                use_container_width=True, on_click=envoyer, args=("diagnostic", option["label"]),
+                kwargs={"question_id": question["id"], "option_id": option["id"]})
+    if r.article and r.article.get("source"):
+        st.caption(f"Source: {r.article['source']}")
     semblable = r.corps.get("ticket_semblable")
     if semblable:
         with st.expander(f"A similar past ticket was solved ({semblable['similarite']:.0%} similar)",

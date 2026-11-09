@@ -130,3 +130,61 @@ inconnue. Sur les 105 incidents de la validation :
 **Bilan de la phase 3** (validation, 3 graines) : exactitude **0,663 ± 0,020**, F1 macro **0,776 ± 0,012**, faux
 **4,0** (de 3 à 5), exactitude quand l'agent répond 95,7 %, priorité exacte **0,870**, fausses escalades 33 %,
 hors sujet refusé 93 %. Les 30 conversations du TP5.1 donnent toujours 10 tickets, tous attendus.
+
+## Phase 3 bis : la qualité des réponses
+
+**Le problème.** Au TP5.1, l'agent cherchait l'article **dans la catégorie prédite seulement** : une erreur du
+classifieur, ou une abstention (30 % des incidents de la validation), privait l'utilisateur du bon article.
+
+**Ce qui a changé.**
+
+- **Recherche dans toute la base** (`kb.proposer`) : les 3 meilleurs articles, toutes catégories confondues ; la
+  catégorie prédite donne un bonus (`BONUS_CATEGORIE = 0,10`) ; index de recherche mots + caractères 3-5 (fautes de
+  frappe). Les mots du temps (« yesterday », « monday », « hours »…) ne décrivent pas l'incident : ils rejoignent les
+  mots génériques de la règle des messages vagues. Le second avis de classement (`article_le_plus_proche`) garde l'index de mots, sur lequel `SEUIL_BASE`
+  est réglé. Un message trop vague n'a pas d'article.
+- **Quand le modèle hésite**, l'agent montre les 3 articles les plus proches à côté des boutons de catégories
+  (« Does one of these articles match your problem? ») ; choisir un article donne sa catégorie à la conversation.
+  Le hors sujet et les mots inconnus n'ont pas d'article.
+- **Suggestions** : à côté de l'article retenu, les deux suivants, que l'utilisateur peut choisir (`choisir_article`).
+- **Base de connaissances** : 42 → **57 articles** (8 par catégorie, 9 en logiciel), chaque article avec des étapes
+  vérifiables (menu, raccourci, commande, chemin ou adresse : `Settings > Network & internet > Wi-Fi > Manage known
+  networks`, `ipconfig /flushdns`, `outlook.exe /safe`, `https://mysignins.microsoft.com`…), un champ `escalade_si`,
+  et une colonne `source` pour les 26 articles dont une étape vient d'une documentation officielle (Microsoft
+  Support, Microsoft Learn). `tests/test_reponses.py` vérifie ces règles article par article.
+- **Questions de diagnostic** (`data/questions_diagnostic.json`, 2 ou 3 par catégorie) : « Is it only you, or
+  everyone around you? », « How are you connected? », « Which application is it? »… La question s'affiche à côté de
+  l'article ; la réponse fait passer des articles devant, ou change la catégorie : « Everyone in the office » fait
+  du réseau ou du logiciel une **panne**, et l'agent propose le ticket critique, **toujours confirmé**. Les
+  réponses citent des articles qui existent : l'API refuse de démarrer sinon (`charger_questions`).
+- **Les règles des tickets du TP5.1 ne changent pas** : ni le choix d'un article ni une réponse de diagnostic ne
+  comptent comme une tentative ; jamais de ticket au premier message ; un seul ticket par conversation.
+- `/assist` renvoie aussi `articles` (les 3 meilleurs) ; `/chat` renvoie `suggestions` et `question`.
+
+**La mesure** (`python src/evaluer_articles.py validation --methode …`). Les 105 incidents de la validation portent
+maintenant les articles qui les règlent (colonne `articles_ok`, écrite d'après le texte des articles, sans regarder
+les réponses de l'agent). top-1 : le premier article proposé est un bon article ; top-3 : un des trois l'est. Un
+incident sans article compte comme manqué.
+
+| Configuration | top-1 | top-3 | Sans article |
+| --- | --- | --- | --- |
+| **Avant** (commit de la phase 3 : base de 42 articles, modèle entraîné dessus, catégorie prédite seulement) | **52,4 %** | **58,1 %** | 36,2 % |
+| Base de 57 articles, catégorie prédite seulement | 59,0 % | 64,8 % | 31,4 % |
+| + toute la base (bonus de catégorie), rien quand le modèle hésite | 61,9 % | 68,6 % | 29,5 % |
+| **+ articles aussi quand le modèle hésite (retenu)** | **75,2 %** | **85,7 %** | 1,0 % |
+| + une réponse au diagnostic (utilisateur simulé qui choisit la réponse qui cite un bon article) | 79,0 % | 86,7 % | 1,0 % |
+
+- Le gros du gain vient des abstentions : le modèle hésite sur 30 % des incidents, mais la base connaît souvent
+  l'article.
+- Le premier essai du diagnostic **faisait baisser** le top-1 (67,6 %) : les articles d'une réponse passaient
+  devant dans l'ordre du fichier. Ils ont maintenant le même bonus et la similarité les départage (79,0 %).
+- **Effet sur le classement** : le jeu de démonstration lit les symptômes de la base, donc le modèle change aussi.
+  Validation, 3 graines : exactitude 0,654 → **0,686**, F1 macro 0,768 → **0,791**, faux 4,0 → 4,3 (de 3 à 6),
+  fausses escalades 34,7 % → 27,1 %. Veto (jeux déjà vus) : jeu du TP5.1 F1 0,793 → 0,807, faux 4,0 → 4,0 ; jeu
+  d'or 0,844 → 0,857. Le F1 par symptôme du jeu de démonstration baisse (0,727 → 0,683) : de nouveaux symptômes,
+  plus proches entre catégories ; la validation, qui seule décide, monte.
+- Les 30 conversations du TP5.1 donnent toujours **10 tickets, tous attendus**, 0 écart.
+- Une phrase de la validation a été reformulée avant la mesure (« scanner jams on every page ») : elle était devenue
+  un symptôme de la nouvelle base (contrôle des fuites de `tests/test_evaluer.py`).
+- Le jeu indépendant a reçu ses `articles_ok` dans le même commit, d'après le texte des articles, **sans faire
+  tourner l'agent dessus** : il sera mesuré une seule fois, en phase 7.

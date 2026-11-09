@@ -10,16 +10,17 @@ from api import conversation as cv
 from api.conversation import ActionRefusee, avancer, nouvelle
 
 
-def article(identifiant, titre="titre"):
-    return {"id": identifiant, "titre": titre, "etapes": ["one", "two", "three"], "escalade_si": "never",
-            "similarite": 0.5}
+def article(identifiant, titre="titre", categorie="reseau"):
+    return {"id": identifiant, "categorie": categorie, "titre": titre, "etapes": ["one", "two", "three"],
+            "escalade_si": "never", "similarite": 0.5}
 
 
 class FauxOutils:
     """Un modèle à mots-clés et une petite base : deux articles réseau, un matériel, un sécurité."""
 
-    BASE = {"reseau": [article("NET-1"), article("NET-2")], "materiel": [article("HW-1")],
-            "securite": [article("SEC-1")], "panne_service": [article("OUT-1")]}
+    BASE = {"reseau": [article("NET-1"), article("NET-2")], "materiel": [article("HW-1", categorie="materiel")],
+            "securite": [article("SEC-1", categorie="securite")],
+            "panne_service": [article("OUT-1", categorie="panne_service")]}
 
     def __init__(self):
         self.tickets = []
@@ -34,9 +35,20 @@ class FauxOutils:
         connus = 0.1 if "xqz" in t else 0.9
         return {"label": "INDETERMINE", "score": 0.3, "priorite": priorite, "connus": connus}
 
-    def chercher(self, text, categorie, exclus):
-        restants = [a for a in self.BASE.get(categorie, []) if a["id"] not in set(exclus)]
-        return restants[0] if restants and "nothing" not in text.lower() else None
+    QUESTIONS = {"reseau": [{"id": "portee", "question": "Only you?", "options": [
+        {"id": "moi", "label": "Only me", "effet": {"articles": ["NET-2"]}},
+        {"id": "tous", "label": "Everyone", "effet": {"categorie": "panne_service"}}]}]}
+
+    def proposer(self, text, categorie, exclus, preferes):
+        """Toute la base : la catégorie d'abord, les articles préférés devant ; sans catégorie, tout."""
+        if "nothing" in text.lower():
+            return []
+        tous = [a for c, liste in self.BASE.items() for a in liste if a["id"] not in set(exclus)]
+        tous.sort(key=lambda a: (a["id"] not in preferes, a["categorie"] != categorie))
+        return tous[:3] if categorie is None or any(a["categorie"] == categorie for a in tous) else []
+
+    def questions(self, categorie):
+        return self.QUESTIONS.get(categorie, [])
 
     def creer_ticket_conversation(self, conv):
         self.tickets.append(dict(conv))

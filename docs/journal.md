@@ -1132,15 +1132,21 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 - **Phase 1, la mesure** : `data/jeu_validation.csv` (120, seul jeu de réglage), `data/jeu_independant.csv` (126, mesure finale), `src/evaluer.py`, colonne `groupe` et F1 par symptôme, copie locale de Tobi-Bueck. Mesure de départ : validation 55,2 %, F1 macro 0,676 ; indépendant 52,7 %, 0,658 ; F1 par symptôme 0,631.
 - **Phase 2, le modèle** : mots + caractères, copies réécrites, applications, `--mixte` et `--origine` ; validation (3 graines) 0,511 → 0,635.
 - **Phase 3, la décision** : classe hors sujet, panne générale, messages mêlés, priorité à part ; validation 0,663, F1 macro 0,776, priorité 0,870.
+- **Phase 3 bis, la qualité des réponses** : recherche dans toute la base (3 articles, bonus de catégorie), articles aussi quand le modèle hésite, base de 57 articles aux étapes vérifiables et sourcées, questions de diagnostic ; validation : top-1 des articles 52,4 % → 75,2 %, top-3 58,1 % → 85,7 % (79,0 % de top-1 après une réponse au diagnostic) ; classement 0,654 → 0,686, F1 macro 0,768 → 0,791 (3 graines).
 
 **Décisions et raisons.**
 
 - **Un seul jeu de réglage** : chaque option est comparée sur la validation, sur 3 graines du jeu de démonstration. Les jeux du TP4 et du TP5.1, déjà vus, servent de veto : le seuil de la base à 0,20 gagnait 3 points en validation mais faisait 5 erreurs de plus sur le jeu du TP5.1, il n'a pas été gardé.
 - **La priorité suit une règle écrite**, et non un modèle appris sur des phrases synthétiques : 86 % contre 76 %.
 - **Le mode `--mixte` reste une option** : il double les erreurs franches sur les messages courts.
+- **Les articles sont proposés même quand le modèle hésite** : c'est là qu'était le gain (top-3 68,6 % → 85,7 %). La catégorie reste incertaine et le choix revient à l'utilisateur : un article choisi donne sa catégorie à la conversation.
+- **Les questions de diagnostic ne bloquent pas** : elles s'affichent à côté de l'article, et ne comptent pas comme une tentative. Les 30 conversations du TP5.1 donnent toujours 10 tickets.
 
 **Problèmes rencontrés.**
 
 - Le contrôle des fuites a trouvé trois messages communs entre les nouveaux jeux et le matériel existant (« tell me a joke », deux symptômes) : reformulés avant la première mesure.
 - Une copie réécrite coupée perdait sa formule d'urgence mais gardait sa priorité : la priorité était tombée à 64 %. Corrigé (la copie prend la priorité de sa catégorie).
 - « It does not work » était de nouveau classé : règle des messages trop vagues.
+- Le premier essai du diagnostic faisait baisser le top-1 (75,2 % → 67,6 %) : les articles d'une réponse passaient devant dans l'ordre du fichier. Corrigé : même bonus pour tous, la similarité départage (79,0 %).
+- `data/questions_diagnostic.json` était ignoré par Git (`data/*`) : exception ajoutée dans `.gitignore`, sinon l'API ne démarrerait pas en CI.
+- Contrôle des fuites : « scanner jams on every page » (validation) était devenu un symptôme de la nouvelle base ; reformulé avant la mesure.

@@ -14,8 +14,9 @@ Motif = Literal["mots_inconnus", "confiance_basse", "priorite_haute", "sans_arti
                 "critique", "hors_sujet"]
 # TP5.1 : la conversation. L'action de l'utilisateur, la phase où en est l'agent, et le code de sa
 # réponse, que l'interface traduit en anglais (comme le motif du TP5).
+# TP5.2 : choisir un des articles suggérés, répondre à une question de diagnostic.
 Action = Literal["message", "resolu", "pas_resolu", "categorie", "demander_ticket", "confirmer_ticket",
-                 "refuser_ticket"]
+                 "refuser_ticket", "choisir_article", "diagnostic"]
 Phase = Literal["solution", "precision", "proposition_ticket", "resolu", "ticket"]
 Code = Literal["solution", "autre_solution", "question_precision", "choisir_categorie", "reformuler", "critique",
                "deux_essais", "demande", "resolu", "ticket_cree", "ticket_refuse", "hors_sujet", "confirmer_categorie"]
@@ -59,10 +60,12 @@ class Article(BaseModel):
     """Un article de la base de connaissances, avec ses étapes."""
 
     id: str
+    categorie: Categorie | None = Field(None, description="La catégorie de l'article (TP5.2 : toute la base est cherchée)")
     titre: str
     etapes: list[str]
     escalade_si: str = Field(..., description="Quand l'article lui-même demande un technicien")
     similarite: float = Field(..., ge=0, le=1)
+    source: str | None = Field(None, description="La documentation officielle d'où viennent les étapes, s'il y en a une")
 
 
 class AssistResponse(PredictResponse):
@@ -73,6 +76,8 @@ class AssistResponse(PredictResponse):
     raison: str = Field(..., description="Pourquoi cette décision, en clair, pour le technicien")
     groupe: str = Field(..., description="Le groupe de techniciens qui recevra le ticket")
     article: Article | None = Field(None, description="L'article proposé, ou rien si aucun ne correspond")
+    articles: list[Article] = Field(default_factory=list,
+                                    description="Les 3 meilleurs articles de toute la base (TP5.2), même si le modèle hésite")
 
 
 class TicketRequest(BaseModel):
@@ -140,6 +145,9 @@ class ChatRequest(BaseModel):
     categorie: Categorie | None = Field(None, description="La catégorie choisie (action « categorie »)")
     etapes_faites: list[str] = Field(default_factory=list, max_length=20,
                                      description="Les étapes cochées (action « pas_resolu »)")
+    article_id: str | None = Field(None, max_length=40, description="L'article suggéré choisi (action « choisir_article »)")
+    question_id: str | None = Field(None, max_length=60, description="La question de diagnostic (action « diagnostic »)")
+    option_id: str | None = Field(None, max_length=60, description="La réponse choisie (action « diagnostic »)")
 
     @field_validator("text")
     @classmethod
@@ -152,6 +160,10 @@ class ChatRequest(BaseModel):
             raise ValueError("l'action « message » demande un texte")
         if self.action == "categorie" and self.categorie is None:
             raise ValueError("l'action « categorie » demande une catégorie")
+        if self.action == "choisir_article" and self.article_id is None:
+            raise ValueError("l'action « choisir_article » demande un article_id")
+        if self.action == "diagnostic" and (self.question_id is None or self.option_id is None):
+            raise ValueError("l'action « diagnostic » demande question_id et option_id")
         if self.action != "message" and self.conversation_id is None:
             raise ValueError("seul un message peut commencer une conversation")
         return self
@@ -167,6 +179,19 @@ class TicketSemblable(BaseModel):
     source: str = Field(..., description="tickets de l'agent, ou historique Tobi-Bueck")
 
 
+class OptionDiagnostic(BaseModel):
+    id: str
+    label: str
+
+
+class QuestionDiagnostic(BaseModel):
+    """Une question de diagnostic (TP5.2) : « seulement vous ou tout le bureau ? », avec ses réponses."""
+
+    id: str
+    question: str
+    options: list[OptionDiagnostic]
+
+
 class ChatResponse(BaseModel):
     """La réponse de l'agent pour un tour : la phase, le code du message, et ce qu'il faut afficher."""
 
@@ -179,6 +204,9 @@ class ChatResponse(BaseModel):
     priorite: Priorite
     categorie: Categorie | None
     article: Article | None
+    suggestions: list[Article] = Field(default_factory=list,
+                                       description="D'autres articles proches, que l'utilisateur peut choisir (TP5.2)")
+    question: QuestionDiagnostic | None = Field(None, description="La question de diagnostic proposée (TP5.2)")
     categories: list[Categorie] = Field(default_factory=list,
                                         description="Les boutons de catégories, de la plus probable à la moins probable")
     choix: list[Action] = Field(..., description="Les actions possibles maintenant")
