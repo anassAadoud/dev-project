@@ -1,7 +1,7 @@
 """Contrats d'entrée et de sortie de l'API (Pydantic v2)."""
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 
 Categorie = Literal["securite", "reseau", "materiel", "compte_acces", "facturation", "logiciel", "panne_service"]
 # TP4 : sous le seuil d'abstention, ou avec trop de mots inconnus, l'API ne tranche pas.
@@ -26,6 +26,9 @@ Statut = Literal["ouvert", "en_cours", "resolu", "ferme"]
 Source = Literal["modele", "base", "aucune", "hors_sujet"]
 
 EXEMPLE = "My VPN keeps disconnecting every 10 minutes when I work from home"
+# TP5.2 : chaque champ texte a une longueur maximale ; les identifiants sont courts.
+Identifiant = Annotated[str, StringConstraints(max_length=40)]
+Etape = Annotated[str, StringConstraints(max_length=500)]
 
 
 def pas_que_des_blancs(valeur: str) -> str:
@@ -86,9 +89,9 @@ class TicketRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000, description="Description de l'incident", examples=[EXEMPLE])
     label: Label | None = Field(None, description="Catégorie ; recalculée par l'API si absente")
     priorite: Priorite | None = Field(None, description="Priorité ; recalculée par l'API si absente")
-    article_id: str | None = Field(None, description="L'article déjà essayé par l'utilisateur")
-    raison: str | None = Field(None, description="Pourquoi le ticket est créé")
-    conversation_id: str | None = Field(None, description="La conversation d'origine : un seul ticket par conversation")
+    article_id: Identifiant | None = Field(None, description="L'article déjà essayé par l'utilisateur")
+    raison: str | None = Field(None, max_length=500, description="Pourquoi le ticket est créé")
+    conversation_id: Identifiant | None = Field(None, description="La conversation d'origine : un seul ticket par conversation")
 
     _texte_non_blanc = field_validator("text")(pas_que_des_blancs)
 
@@ -139,11 +142,11 @@ class TicketUpdate(BaseModel):
 class ChatRequest(BaseModel):
     """Un tour de conversation : un message, ou un clic sur un bouton de la page."""
 
-    conversation_id: str | None = Field(None, description="Absent pour commencer une conversation")
+    conversation_id: Identifiant | None = Field(None, description="Absent pour commencer une conversation")
     action: Action = "message"
     text: str | None = Field(None, min_length=1, max_length=2000, examples=[EXEMPLE])
     categorie: Categorie | None = Field(None, description="La catégorie choisie (action « categorie »)")
-    etapes_faites: list[str] = Field(default_factory=list, max_length=20,
+    etapes_faites: list[Etape] = Field(default_factory=list, max_length=20,
                                      description="Les étapes cochées (action « pas_resolu »)")
     article_id: str | None = Field(None, max_length=40, description="L'article suggéré choisi (action « choisir_article »)")
     question_id: str | None = Field(None, max_length=60, description="La question de diagnostic (action « diagnostic »)")
@@ -220,8 +223,8 @@ class ChatResponse(BaseModel):
 class FeedbackRequest(BaseModel):
     """L'avis de l'utilisateur sur une réponse de l'agent : utile ou pas."""
 
-    conversation_id: str
-    tour: int = Field(..., ge=1)
+    conversation_id: Identifiant
+    tour: int = Field(..., ge=1, le=1000)
     utile: bool
     commentaire: str | None = Field(None, max_length=500)
 

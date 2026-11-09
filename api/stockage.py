@@ -7,8 +7,11 @@ dernière ligne qui porte son identifiant est sa version actuelle, et les préc�
 historique. C'est simple, sans base de données, et suffisant pour un agent de premier niveau.
 """
 import json
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger("support_api")
 
 RACINE = Path(__file__).resolve().parents[1]
 NOMS = {"tickets", "conversations", "feedback"}
@@ -42,11 +45,15 @@ def tous(nom: str) -> list[dict]:
     if not fichier.exists():
         return []
     actuels: dict[str, dict] = {}
-    with fichier.open(encoding="utf-8") as f:
-        for ligne in f:
-            if ligne.strip():
+    with fichier.open(encoding="utf-8", errors="replace") as f:
+        for numero, ligne in enumerate(f, start=1):
+            if not ligne.strip():
+                continue
+            try:  # TP5.2 : une ligne abîmée (écriture coupée, édition à la main) n'empêche pas de lire les autres
                 objet = json.loads(ligne)
                 actuels[objet["id"]] = objet
+            except (json.JSONDecodeError, KeyError, TypeError):
+                logger.warning("%s, ligne %d illisible : ignorée", fichier.name, numero)
     return list(actuels.values())
 
 

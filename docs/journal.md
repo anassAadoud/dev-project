@@ -1135,6 +1135,7 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 - **Phase 3 bis, la qualité des réponses** : recherche dans toute la base (3 articles, bonus de catégorie), articles aussi quand le modèle hésite, base de 57 articles aux étapes vérifiables et sourcées, questions de diagnostic ; validation : top-1 des articles 52,4 % → 75,2 %, top-3 58,1 % → 85,7 % (79,0 % de top-1 après une réponse au diagnostic) ; classement 0,654 → 0,686, F1 macro 0,768 → 0,791 (3 graines).
 - **Phase 4, l'hybride** : TF-IDF + vecteurs all-MiniLM-L6-v2 dans le classement et la recherche d'articles ; validation (3 graines) F1 macro 0,791 → 0,847, top-3 85,7 % → 96,2 %, faux 4,3 → 3,0, environ 0,1 s par message ; gardé (règle : +5 points de F1 ou de top-3). Encodeur factice en CI, un test lent avec le vrai.
 - **Phase 5, l'interface** : onglet fichier (lecture tolérante d'un CSV d'Excel, article et étapes par ticket, colonne critical, téléchargement pour Excel) ; tickets des cas critiques proposés tout de suite et créés après confirmation.
+- **Phase 6, l'API** : corps limité à 128 Ko, champs et identifiants bornés, refus et pannes sans fuite (ni texte reçu, ni trace), CORS restreint, en-têtes de sécurité, stockage tolérant aux lignes abîmées ; refus de démarrer sans modèle, base, questions ou encodeur.
 
 **Décisions et raisons.**
 
@@ -1156,4 +1157,5 @@ jeu d'or : juste 15, abstention 3, erreur franche déclarée 2 (« It does not w
 - Contrôle des fuites : « scanner jams on every page » (validation) était devenu un symptôme de la nouvelle base ; reformulé avant la mesure.
 - Mon commit de la phase 3 bis portait une autre identité Git (celle du poste, `anass aadoud`) : `test_each_member_has_committed` passait alors à tort, une personne comptant pour deux. L'auteur du commit a été corrigé (`--amend`, dépôt sans remote, rien de poussé) ; les commits suivants passent l'identité du membre A.
 - Encodeur : le cache borné perdait des vecteurs quand un lot dépassait sa taille (trouvé par le test) ; corrigé.
+- Limite de taille : une exception levée pendant la lecture du corps devenait un 400 de FastAPI ; le corps est maintenant lu par le middleware puis rejoué. La limite de 64 Ko était trop basse pour le plus gros /chat légitime (72 Ko, accents échappés) : 128 Ko.
 - CI simulée (encodeur factice) : la règle des messages mêlés coupait deux pièges qui commencent par « The issue is… » ; corrigé, sans recul sur les messages mêlés.

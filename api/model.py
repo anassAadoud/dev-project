@@ -222,7 +222,9 @@ class SupportClassifier:
         if conversation_id is None:
             conv = conversation.nouvelle(f"CNV-{uuid.uuid4().hex[:8].upper()}")
         else:
-            trouvee = stockage.lire("conversations", conversation_id)
+            from api.securite import conversation_valide
+
+            trouvee = stockage.lire("conversations", conversation_id) if conversation_valide(conversation_id) else None
             if trouvee is None:
                 raise ConversationInconnue(conversation_id)
             conv = trouvee  # type: ignore[assignment]  # un dict relu du fichier, de la forme Conversation

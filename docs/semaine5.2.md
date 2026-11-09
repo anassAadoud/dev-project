@@ -265,3 +265,25 @@ incidents informatiques envoyés au tri, dont des cas de sécurité (« An emplo
 their credentials ») ; « ransomware note on my screen » encore indéterminé (confiance 0,60, juste sous le seuil).
 Le modèle de la phase 4 réduit l'abstention (22,9 % de la validation au lieu de 29,5 %) ; dans le fichier, les
 incidents indéterminés partent toujours au tri N1, jamais perdus.
+
+## Phase 6 : sécurité et fiabilité de l'API
+
+Tout est dans `api/securite.py` et testé par `tests/test_securite.py` (22 tests) :
+
+| Risque | Avant | Après |
+| --- | --- | --- |
+| Requête énorme (mémoire, temps) | aucune limite de corps | **128 Ko** au plus, annoncés ou envoyés par morceaux → 413 ; le plus gros `/chat` légitime fait 72 Ko |
+| Champs sans limite | `etapes_faites` (chaque étape), `raison`, identifiants, `tour` | 500 caractères par étape, 500 pour la raison, 40 pour un identifiant, tour ≤ 1 000 |
+| Identifiants arbitraires (`../..`, 500 caractères) | lus dans le stockage | formats `CNV-XXXXXXXX` et `TCK-XXXXXXXX` vérifiés : sinon 404, **sans lire le stockage** |
+| Un refus renvoie le texte reçu | le 422 de FastAPI contient `input` (le texte de l'employé) | `loc`, `msg`, `type` seulement : la forme standard que les tests du TP4 vérifient |
+| Panne imprévue hors des routes protégées | réponse de Starlette | gestionnaire global : journalisée côté serveur, le client reçoit « Erreur interne du serveur », ni trace ni chemin |
+| CORS | tous les sites, avec cookies | `SUPPORT_ORIGINES` (par défaut la page Streamlit locale), sans cookies, GET / POST / PATCH |
+| Mise en cache, cadres | rien | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store` |
+| Ligne abîmée dans `tickets.jsonl` (écriture coupée) | plus aucun ticket lisible (500) | ligne ignorée et journalisée, les autres restent lisibles |
+
+**Modèle, base, questions ou encodeur absents** : l'API **refuse de démarrer** avec un message qui dit quoi faire
+(règle du TP4 : mieux vaut ne pas démarrer que répondre faux), y compris pour `data/questions_diagnostic.json`
+(nouveau test) et pour MiniLM (phase 4). Un modèle retiré pendant que l'API tourne répond 503.
+
+**Non traité** (noté pour le TP6) : pas d'authentification (l'API est faite pour un réseau interne, derrière la
+page), pas de limite de débit par client, et les tickets restent en fichiers JSON Lines sans chiffrement.

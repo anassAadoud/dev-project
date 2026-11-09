@@ -8,9 +8,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import llm, stockage, suivi, tickets
+from api import llm, securite, stockage, suivi, tickets
 from api.conversation import ActionRefusee
 from api.model import GROUPES, Assistance, ConversationInconnue, Prediction, SupportClassifier, load_model
 from api.schemas import (
@@ -52,14 +53,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS : indispensable pour un frontend web (TP5). En production, lister les domaines autorisés.
+# CORS : indispensable pour un frontend web (TP5). TP5.2 : seulement les sites de SUPPORT_ORIGINES (par défaut
+# la page Streamlit locale), sans cookies : l'API n'en utilise pas. La page Streamlit appelle l'API depuis le
+# serveur Python, elle n'a pas besoin de CORS ; une page web, si.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=securite.origines(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Content-Type"],
 )
+# TP5.2 : corps limité à 64 Ko, en-têtes de sécurité, refus et pannes sans fuite d'information (api/securite.py).
+app.add_middleware(securite.EnTetes)
+app.add_middleware(securite.LimiteCorps)
+app.add_exception_handler(RequestValidationError, securite.refus_422)  # type: ignore[arg-type]
+app.add_exception_handler(Exception, securite.panne_500)
 
 
 def _classifier() -> SupportClassifier:
@@ -121,6 +129,8 @@ async def creer_ticket(request: TicketRequest) -> dict:
     La catégorie et la priorité manquantes sont calculées par le modèle."""
     clf = _classifier()
     champs = request.model_dump()
+    if champs["conversation_id"] and not securite.conversation_valide(champs["conversation_id"]):
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
     if champs["conversation_id"] and tickets.pour_conversation(champs["conversation_id"]) is not None:
         raise HTTPException(status_code=409, detail="Un seul ticket par conversation")
     if champs["label"] is None or champs["priorite"] is None:
@@ -147,7 +157,7 @@ async def lister_tickets() -> list[dict]:
 @app.get("/tickets/{identifiant}", response_model=Ticket, summary="Lire un ticket")
 async def lire_ticket(identifiant: str) -> dict:
     """Renvoie le ticket, avec son statut et son historique, ou 404 s'il n'existe pas."""
-    ticket = tickets.lire(identifiant)
+    ticket = tickets.lire(identifiant) if securite.ticket_valide(identifiant) else None
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket introuvable")
     return ticket
@@ -156,7 +166,8 @@ async def lire_ticket(identifiant: str) -> dict:
 @app.patch("/tickets/{identifiant}", response_model=Ticket, summary="Faire avancer un ticket")
 async def suivre_ticket(identifiant: str, request: TicketUpdate) -> dict:
     """Le technicien change le statut (ouvert, en_cours, resolu, ferme) ; l'historique garde chaque étape."""
-    ticket = tickets.mettre_a_jour(identifiant, request.statut, request.commentaire, request.resolution)
+    ticket = (tickets.mettre_a_jour(identifiant, request.statut, request.commentaire, request.resolution)
+              if securite.ticket_valide(identifiant) else None)
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket introuvable")
     logger.info("ticket %s -> %s", identifiant, request.statut)
@@ -192,7 +203,8 @@ async def chat(request: ChatRequest) -> dict:
 @app.post("/feedback", response_model=Feedback, status_code=201, summary="Avis sur une réponse (utile ou pas)")
 async def feedback(request: FeedbackRequest) -> dict:
     """Enregistre l'avis de l'utilisateur sur un tour de la conversation (404 si le tour n'existe pas)."""
-    conversation = stockage.lire("conversations", request.conversation_id)
+    conversation = (stockage.lire("conversations", request.conversation_id)
+                    if securite.conversation_valide(request.conversation_id) else None)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation introuvable")
     try:
